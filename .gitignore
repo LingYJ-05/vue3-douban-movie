@@ -1,0 +1,8 @@
+src/main.ts
+src/style.css
+src/components/MyComponent.vue
+src/components/tab/tab.vue
+src/components/user-center copy/user-center.vue
+src/router/index.js
+src/store/index.ts
+src/store/modules/movie.ts
