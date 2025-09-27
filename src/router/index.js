@@ -1,5 +1,6 @@
 import { createRouter, createWebHashHistory } from 'vue-router'
 import AllDiscussion from '../components/all-discussion/all-discussion.vue'
+import MovieReview from '../components/movie-review/movie-review.vue'
 
 // 定义路由配置
 const routes = [
@@ -39,11 +40,7 @@ const routes = [
     name: 'movie-detail',
     component: () => import('../components/movie-detail/movie-detail.vue'),
     children: [
-      {
-        path: 'reviews',
-        name: 'movie-detail-reviews',
-        component: () => import('../components/movie-review/movie-review.vue')
-      },
+      {        path: 'reviews',        name: 'movie-detail-reviews',        component: MovieReview      },
       {
         path:'discussType',
         component:AllDiscussion

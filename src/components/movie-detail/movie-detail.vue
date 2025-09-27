@@ -41,7 +41,7 @@ import LoadMore from '../../base/loadmore/loadmore.vue';
 import Scroll from '../../base/scroll/scroll.vue';
 import Switches from '../../base/switches/switches.vue';
 import { ref, computed, nextTick, onMounted } from 'vue'
-import movieReview from '../../components/movie-review/movie-review.vue'
+import MovieReview from '../../components/movie-review/movie-review.vue'
 import { useStore } from 'vuex'
 import { getMovieDetail } from '../../api/movie-detail.js';
 import { useRouter, useRoute } from 'vue-router';
