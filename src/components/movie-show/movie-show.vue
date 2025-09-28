@@ -1,3 +1,4 @@
+```vue
 <template>
   <div class="movie-show">
     <!-- 搜索框 -->
@@ -83,12 +84,12 @@ const hasMoreMovies = reactive({
   coming: true
 })
 
-// 其他状态
+// 滚动相关状态
 const loading = ref(false)
 const error = ref('')
 const currentIndex = ref(0)
 const fixedTitle = ref('')
-const needDate = ref(true)
+// const needDate = ref(true)
 
 // 滚动组件配置
 const scrollProps = {
@@ -99,6 +100,14 @@ const scrollProps = {
 
 // 保存滚动组件引用
 const scrollComponent = ref(null)
+
+// 滚动相关状态
+const scorllY = ref(-1)           // 当前滚动位置
+const scrollIndex = ref(0)        // 当前滚动到的索引
+const listHeight = ref([])        // 每个分组的高度数组
+const fixedTop = ref(0)           // 固定标题的偏移量
+const scorllMap = ref(null)       // 滚动映射数据
+const refs = ref({})              // DOM引用
 
 // 电影加载配置
 const CONFIG = {
@@ -116,6 +125,92 @@ const apiMap = {
 const indexMap = reactive({
   hot: 0,
   coming: 0
+})
+
+// 滚动相关方法
+// 保存滚动组件传入的高度
+const getHeight = (height) => {
+  listHeight.value = height
+}
+
+// 保存子组件传入的日期映射
+const getMap = (map) => {
+  scorllMap.value = map
+}
+
+// 滚动事件处理
+const scroll = (e) => {
+  scorllY.value = e.detail.y
+}
+
+// 监听滚动位置变化，计算当前索引和固定标题
+watch(scorllY, (newY) => {
+  if (!newY) { // 如果在快速滚动时切换tab栏，滚动位置会读取错误，这里保留出错前正确的滚动位置
+    return
+  }
+  if (!listHeight.value || !scorllMap.value) {
+    return
+  }
+  
+  if (newY > 0) {
+    scrollIndex.value = 0
+    return
+  }
+  
+  // 在中间部分滚动
+  if (Array.isArray(listHeight.value) && listHeight.value.length > 1) {
+    for (let i = 0; i < listHeight.value.length - 1; i++) {
+      let height1 = listHeight.value[i] // 上一个元素的高度
+      let height2 = listHeight.value[i + 1] // 下一个元素的高度
+      if (-newY >= height1 && -newY < height2) {
+        scrollIndex.value = i
+        
+        // 更新固定标题
+        updateFixedTitle(i)
+        return
+      }
+    }
+    // 滚动到底部 且newY大于最后一个元素的上限
+    scrollIndex.value = listHeight.value.length - 2
+    
+    // 更新固定标题
+    updateFixedTitle(listHeight.value.length - 2)
+  }
+})
+
+// 更新固定标题
+const updateFixedTitle = (index) => {
+  if (scorllMap.value && currentIndex.value === 1) {
+    const keys = Object.keys(scorllMap.value)
+    if (keys.length > 0 && index < keys.length) {
+      fixedTitle.value = keys[index]
+    }
+  }
+}
+
+// 计算固定标题的位置（吸顶效果）
+const diff = (newval) => {
+  let tempFixedTop = (newval > 0 && newval < CONFIG.TITLE_HEIGHT) ? 
+    newval - CONFIG.TITLE_HEIGHT : 0
+  
+  if (fixedTop.value === tempFixedTop) {
+    return
+  }
+  
+  fixedTop.value = tempFixedTop
+  nextTick(() => {
+    if (refs.value.fixed) {
+      refs.value.fixed.style.transform = `translate3d(0, ${tempFixedTop}px, 0)`
+    }
+  })
+}
+
+// 监听scrollIndex变化，计算固定标题位置
+watch(scrollIndex, (newIndex) => {
+  if (currentIndex.value === 1 && listHeight.value.length > 0) {
+    const newY = -listHeight.value[newIndex]
+    diff(newY)
+  }
 })
 
 // 统一的加载方法
@@ -177,16 +272,23 @@ const finishPullUp = () => {
 // 切换标签
 const switchItem = (index) => {
   currentIndex.value = index
+  
+  // 切换标签时重置滚动相关状态
+  scorllY.value = -1
+  scrollIndex.value = 0
+  fixedTitle.value = ''
+  
   loadMovies(index) // 加载对应数据
   refreshScroll()
 }
 
 // 加载更多数据
+// 判断目前是加载热映还是加载即将上映的电影
+const loadingListType= currentIndex.value===0?'hot':'coming'
 const loadMoreData = () => {
-  if (loading.value || !hasMoreMovies[currentIndex.value === 0 ? 'hot' : 'coming']) {
+  if (loading.value || !hasMoreMovies[loadingListType]) {
     return
   }
-  
   loadMovies(currentIndex.value, true)
 }
 
@@ -208,11 +310,6 @@ const retryLoad = () => {
 // 处理图片错误
 const handleError = (e) => {
   e.target.src = 'https://via.placeholder.com/80x120?text=电影海报'
-}
-
-// 滚动事件
-const scroll = (e) => {
-  // 滚动相关逻辑保持不变
 }
 
 // 搜索功能
