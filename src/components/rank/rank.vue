@@ -1,5 +1,6 @@
 <template>
     <div class="rank">
+        <!-- 搜索栏 -->
         <div class="go-search" @click="goSearch">
             <div class="logo">
                 <img src="../movie-show/douban-logo.png" width="35" height="35">
@@ -9,161 +10,111 @@
             </div>
         </div>
 
-        <Scroll class="rank-list" :data="urlList" ref="scrollRef">
+        <!-- 滚动列表 -->
+        <Scroll class="rank-list" :data="rankList" ref="scrollRef">
             <div class="scroll-wrapper">
                 <div class="scroll-content">
                     <h1 class="title">精选榜单</h1>
 
-                    <div class="rank-item top250" @click="goTo('/rank/top250')">
+                    <!-- 动态渲染榜单 -->
+                    <div class="rank-item" v-for="item in rankList" :key="item.id" @click="goTo(item.path)"
+                        :class="item.type">
                         <div class="desc">
-                            <h2 class="name">豆瓣 Top250</h2>
-                            <span>8分以上的好电影</span>
+                            <h2 class="name">{{ item.title }}</h2>
+                            <span>{{ item.subtitle }}</span>
                         </div>
                         <div class="rank-img">
-                            <img :src="replaceUrl('https://img3.doubanio.com/view/photo/s_ratio_poster/public/p480747492.jpg')"
-                                alt="Top250电影">
-                        </div>
-                    </div>
-                    <div class="rank-item weekly" @click="goTo('/rank/weekly')">
-                        <div class="desc">
-                            <h2 class="name">本周口碑榜</h2>
-                            <span class="brief">{{ weekDate }}</span>
-                        </div>
-                        <div class="rank-img">
-                            <img :src="replaceUrl('https://img2.doubanio.com/view/photo/s_ratio_poster/public/p2867890123.jpg')"
-                                alt="本周口碑电影">
-                        </div>
-                    </div>
-                    <div class="rank-item new-movie" @click="goTo('/rank/new')">
-                        <div class="desc">
-                            <h2 class="name">新片榜</h2>
-                            <span class="brief">{{ weekDate }}</span>
-                        </div>
-                        <div class="rank-img">
-                            <img :src="replaceUrl('https://img2.doubanio.com/view/photo/s_ratio_poster/public/p2856789342.jpg')"
-                                alt="新片榜电影">
-                        </div>
-                    </div>
-                    <div class="rank-item us-box" @click="goTo('/rank/us')">
-                        <div class="desc">
-                            <h2 class="name">北美票房榜</h2>
-                            <span class="brief">票房最高排名</span>
-                        </div>
-                        <div class="rank-img">
-                            <img :src="replaceUrl('https://img2.doubanio.com/view/photo/s_ratio_poster/public/p2548771326.jpg')"
-                                alt="北美票房电影">
+                            <img :src="replaceUrl(item.poster)" :alt="item.title">
                         </div>
                     </div>
                 </div>
             </div>
         </Scroll>
-        <load-more v-if="!hasLoad" :fullScreen="fullScreen" />
+
+        <!-- 加载组件 -->
+        <load-more v-if="!hasLoad" :fullScreen="false" />
         <router-view></router-view>
     </div>
 </template>
 
-<script setup name="Rank">
-
-// 正确导入必要的内容
-import LoadMore from '../../base/loadmore/loadmore.vue'
+<script setup>
 import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
+import LoadMore from '../../base/loadmore/loadmore.vue'
 import Scroll from '../../base/scroll/scroll.vue'
-import WeekDate from '../../common/js/date';
-import { top250Rank, weeklyRank, newMoviesRank, usRank } from '../../api/movie-rank'
+import WeekDate from '../../common/js/date'
 
 
-//响应式数据
+// 响应式数据
 const router = useRouter()
-const weekDate = ref('')
 const hasLoad = ref(false)
-const urlList = ref([])
-const scrollRef = ref(null)
 
+// 榜单数据 - 简化结构
+const rankList = ref([
+    {
+        id: 'top250',
+        type: 'top250',
+        title: '豆瓣 Top250',
+        subtitle: '8分以上的好电影',
+        path: '/rank/top250',
+        poster: 'https://img3.doubanio.com/view/photo/s_ratio_poster/public/p480747492.jpg'
+    },
+    {
+        id: 'weekly',
+        type: 'weekly',
+        title: '本周口碑榜',
+        subtitle: '', // 会在onMounted中更新
+        path: '/rank/weekly',
+        poster: 'https://img2.doubanio.com/view/photo/s_ratio_poster/public/p2867890123.jpg'
+    },
+    {
+        id: 'new-movie',
+        type: 'new-movie',
+        title: '新片榜',
+        subtitle: '', // 会在onMounted中更新
+        path: '/rank/new',
+        poster: 'https://img2.doubanio.com/view/photo/s_ratio_poster/public/p2856789342.jpg'
+    },
+    {
+        id: 'us-box',
+        type: 'us-box',
+        title: '北美票房榜',
+        subtitle: '票房最高排名',
+        path: '/rank/us',
+        poster: 'https://img2.doubanio.com/view/photo/s_ratio_poster/public/p2548771326.jpg'
+    }
+])
 
+// 方法
+const goSearch = () => router.push('/search')
+const goTo = (path) => router.push(path)
 
-//方法
-// 添加搜索功能
-const goSearch = () => {
-    router.push('/search')
-}
-const fullScreen = ref(false)
-
-const goTo = (path) => {
-    router.push(path)
-}
-//图片防盗
+// 图片防盗链处理
 const replaceUrl = (srcUrl) => {
-    if (srcUrl) {
-        return 'https://images.weserv.nl/?url=' + srcUrl.replace(/http\w{0,1}:\/\//, '');
-    }
-    return ''
+    if (!srcUrl) return ''
+    return 'https://images.weserv.nl/?url=' + srcUrl.replace(/http\w{0,1}:\/\//, '')
 }
-//
-const getUrlList = (urls) => {
-    const list = []
-    urls.forEach((item, index) => {
-        // 确保有subjects属性且是数组
-        if (!item || !Array.isArray(item.subjects)) {
-            list[index] = []
-            return
-        }
-
-        const subjects = item.subjects.slice(0, 3) //取前3个
-        list[index] = []
-
-        subjects.forEach((movieItem) => {
-            // 处理不同数据结构
-            if (movieItem.subject) {
-                // 处理嵌套subject结构
-                if (movieItem.subject.images && movieItem.subject.images.medium) {
-                    list[index].push(movieItem.subject.images.medium)
-                }
-            } else if (movieItem.images && movieItem.images.medium) {
-                // 直接的images结构
-                list[index].push(movieItem.images.medium)
-            }
-        })
-
-        //确保至少有2个元素再交换位置
-        if (list[index].length >= 2) {
-            //将第二个图放在第一位
-            [list[index][0], list[index][1]] = [list[index][1], list[index][0]]
-        }
-    })
-    // 确保每个榜单数组至少有一个元素，避免白屏
-    for (let i = 0; i < list.length; i++) {
-        if (!list[i] || list[i].length === 0) {
-            // 如果没有图片，使用一个默认占位图
-            list[i] = ['https://img2.doubanio.com/view/photo/s_ratio_poster/public/p2588658240.jpg'];
-        }
-    }
-    urlList.value = list
+// 获取本周日期
+const getWeekDate = () => {
+    const date = new WeekDate()
+    return `${date.getWeekStartDate()}-${date.getWeekEndDate()}`
 }
-const _getWeekDate = () => {
-    const data = new WeekDate()
-    weekDate.value = `${data.getWeekStartDate()}-${data.getWeekEndDate()}`
-}
-const _getRankList = async () => {
+// 组件挂载时执行
+onMounted(async () => {
+    // 同步操作 - 不需要 await
+    rankList.value[1].subtitle = getWeekDate()
+    rankList.value[2].subtitle = getWeekDate()
+
+    //异步处理
     try {
-        const [top250Res, weeklyRes, newMoviesRes, usRes] = await Promise.all([
-            top250Rank(),
-            weeklyRank(),
-            newMoviesRank(),
-            usRank()
-        ])
-        getUrlList([top250Res, weeklyRes, newMoviesRes, usRes])
-        hasLoad.value = true
+        const movieData = await fetch('/api/weekly-movies')
+        rankList.value[1].movies = movieData
     } catch (error) {
-        // console.log(error)
+        console.error('获取电影数据失败:', error)
     }
-}
-onMounted(() => {
-    _getRankList()
-    _getWeekDate()
+    // 这个赋值必须等上面的异步操作完成后再执行
+    hasLoad.value = true
 })
-
-
 </script>
 
 <style scoped>
@@ -205,7 +156,6 @@ onMounted(() => {
 
 .rank .rank-list .title {
     color: #333;
-    /* 替换 $color-text-f */
 }
 
 .rank .rank-list .scroll-content {
