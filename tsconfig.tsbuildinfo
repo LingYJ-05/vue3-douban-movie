@@ -1,1 +1,1 @@
-{"root":["./src/global.d.ts","./src/main.ts","./src/shims-vue.d.ts","./src/components/store/index.ts","./src/components/store/types.d.ts","./src/mocks/handlers.ts","./src/mocks/setupworker.ts","./src/router/index.ts"],"version":"5.9.3"}
+{"root":["./src/main.ts","./src/shims-vue.d.ts","./src/components/store/index.ts","./src/mocks/handlers.ts","./src/mocks/setupworker.ts","./src/router/index.ts"],"version":"5.9.3"}
