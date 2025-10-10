@@ -1,9 +1,9 @@
 import { createApp } from 'vue'
 import App from './App.vue'
-import router from './router/index.js'
 import VueLazyload from 'vue3-lazyload'
 import { worker } from './mocks/setupWorker.ts'
-import store from './components/store/index.js'
+import router from './router/index.ts'
+import store from './components/store/index.ts'
 import ElementPlus from 'element-plus'
 import 'element-plus/dist/index.css'
 // 配置图片懒加载的占位图
