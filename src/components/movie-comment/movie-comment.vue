@@ -36,7 +36,7 @@
 
 <script setup>
 // 1. 导入需要的模块
-import { defineProps, defineEmits, computed } from 'vue';
+import { computed } from 'vue';
 import { useStore } from 'vuex';
 import Star from '../../base/star/star.vue';
 import Loadmore from '../../base/loadmore/loadmore.vue';
@@ -79,28 +79,17 @@ const needAllComments = () => {
 
 // 检查是否已点赞
 const isLike = (id) => {
-  const index = favoriteComments.value.findIndex((item) => {
-    return item === id;
-  });
-  return index > -1;
+  return favoriteComments.value.includes(id);
 };
 
-// 标记评论（点赞/取消点赞）
+// 标记评论点赞
 const markItem = (id, index) => {
-  // 提交action
-  store.dispatch('markComment', id);
-
-  // 进行模拟点赞加减的操作，不为真实数据
-  const commentIndex = favoriteComments.value.findIndex((item) => {
-    return item === id;
-  });
-
-  if (commentIndex > -1) {
-    // 如果已点赞，点击后取消点赞，有用数减1
-    props.comments[index].useful_count = Math.max(0, props.comments[index].useful_count - 1);
+  if (isLike(id)) {
+    // 取消点赞
+    store.dispatch('removeFavoriteComment', id);
   } else {
-    // 如果未点赞，点击后点赞，有用数加1
-    props.comments[index].useful_count += 1;
+    // 点赞
+    store.dispatch('addFavoriteComment', id);
   }
 };
 
@@ -115,72 +104,76 @@ const replaceUrl = (srcUrl) => {
 
 <style scoped>
 .movie-comment {
-  padding: 20px;
-  background: #f5f5f5;
+  padding: 0 15px;
 }
 
-.movie-comment .type-title {
-  font-size: 14px;
-  margin-bottom: 15px;
+.type-title {
+  font-size: 18px;
+  margin: 15px 0;
 }
 
-.movie-comment .comment-item {
+.comment-item {
   display: flex;
-  margin-bottom: 20px;
+  padding: 15px 0;
+  border-bottom: 1px solid #e0e0e0;
 }
 
-.movie-comment .comment-item .avatar {
-  flex: 0 0 36px;
-  width: 36px;
-  margin-right: 12px;
+.avatar {
+  margin-right: 10px;
+  flex-shrink: 0;
 }
 
-.movie-comment .comment-item .avatar img {
+.avatar img {
   border-radius: 50%;
 }
 
-.movie-comment .comment-item .content {
+.content {
   flex: 1;
-  position: relative;
+}
+
+.name {
   font-size: 14px;
   color: #333;
+  margin: 0;
 }
 
-.movie-comment .comment-item .content .name {
-  display: inline-block;
-  line-height: 25px;
-  margin-right: 5px;
-}
-
-.movie-comment .comment-item .content .star {
-  display: inline-block;
-}
-
-.movie-comment .comment-item .content .text {
-  line-height: 20px;
-}
-
-.movie-comment .comment-item .content .date {
-  font-size: 12px;
-  color: #666;
-  line-height: 25px;
-}
-
-.movie-comment .comment-item .content .useful-count {
-  position: absolute;
-  color: #666;
-  top: 5px;
-  right: 5px;
-}
-
-.movie-comment .comment-item .content .useful-count.like {
-  color: #ff4500;
-}
-
-.movie-comment .allComment {
+.text {
   font-size: 14px;
-  color: #ff4500;
+  line-height: 1.5;
+  margin: 8px 0;
+}
+
+.date {
+  font-size: 12px;
+  color: #999;
+}
+
+.useful-count {
+  display: inline-block;
+  margin-left: 15px;
+  padding: 0 5px;
+  font-size: 12px;
+  color: #999;
+}
+
+.useful-count.like {
+  color: #00bcd4;
+}
+
+.icon-thumb_up {
+  display: inline-block;
+  width: 16px;
+  height: 16px;
+  background: url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTYiIGhlaWdodD0iMTYiIHZpZXdCb3g9IjAgMCAxNiAxNiIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KICAgIDxwYXRoIGQ9Ik0xMC45OCAzLjc2aC0zLjE5bC0uMT3FjLTEuMTUu0zEyLjIgNS43OUwxNiA0LjA0VjE0Ljl2LS4wM2wzLjk5LTQtMS44LTMuOTktMy4wNC0xLjI1LTQuMTMgMC40OUw4LjUgMTMuMTZMMi40IDQuNDlsLTMuOTkgNCAzLjk5IDQgMy45OS00IDQtMy45OUwxMi4yIDEuOCA5LjIgNS43OUwxMC45OCAzLjc2eiIgZmlsbD0iIzAwQkNEQiIgZmlsbC1vcGFjaXR5PSIwLjQiLz4KPC9zdmc+');
+  background-size: 100%;
+  vertical-align: middle;
+}
+
+.allComment {
+  padding: 15px 0;
   text-align: center;
-  padding-bottom: 10px;
+  color: #666;
+  font-size: 14px;
+  border-bottom: 1px solid #e0e0e0;
 }
 </style>

@@ -7,7 +7,7 @@
         <img src="./douban-logo.png" width="35" height="35" alt="豆瓣logo" @error="handleError">
       </div>
       <div class="search-content">
-        <span class="icon-search">🔍</span>
+       <el-icon class="search-icon"><Search /></el-icon>
         <span>电影/影人/标签</span>
       </div>
     </div>
@@ -58,6 +58,7 @@
 </template>
 
 <script setup>
+import { Search } from '@element-plus/icons-vue'
 import Switches from '../../base/switches/switches.vue'
 import LoadMore from '../../base/loadmore/loadmore.vue'
 import movieList from '../../components/movie-list/movie-list.vue'
@@ -85,6 +86,7 @@ const hasMoreMovies = reactive({
 })
 
 // 滚动相关状态
+const fullScreen = ref(false)
 const loading = ref(false)
 const error = ref('')
 const currentIndex = ref(0)
@@ -309,7 +311,7 @@ const retryLoad = () => {
 
 // 处理图片错误
 const handleError = (e) => {
-  e.target.src = 'https://via.placeholder.com/80x120?text=电影海报'
+  e.target.src = 'https://picsum.photos/80/120'
 }
 
 // 搜索功能
@@ -344,9 +346,7 @@ loadMovies(0) // 默认加载热映电影
 
 .movie-show .go-search .search-content {
   background-color: #f5f5f5;
-  /* $color-background-d */
   font-size: 16px;
-  /* $font-size-medium-x */
   line-height: 35px;
   border-radius: 5px;
 }
@@ -354,6 +354,7 @@ loadMovies(0) // 默认加载热映电影
 .movie-show .go-search .search-content span {
   display: inline-block;
   vertical-align: middle;
+  margin-bottom: 5px;
 }
 
 .movie-show .list-wrapper {

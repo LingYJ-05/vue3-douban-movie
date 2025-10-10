@@ -15,10 +15,7 @@
 </template>
 
 <script setup>
-// 1. 导入需要的模块
-import { defineProps, defineEmits } from 'vue';
-
-// 2. 定义props
+// 1. 定义props
 const props = defineProps({
   celebrities: {
     type: Array,
@@ -26,10 +23,10 @@ const props = defineProps({
   }
 });
 
-// 3. 定义emit事件
+// 2. 定义emit事件
 const emit = defineEmits(['select']);
 
-// 4. 方法定义
+// 3. 方法定义
 // 选择影人
 const selectItem = (id) => {
   emit('select', id); // 触发父组件的select事件

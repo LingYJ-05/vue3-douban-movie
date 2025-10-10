@@ -1,87 +1,88 @@
 <template>
-    <div class="rank-list">
-        <ul>
-            <li class="rank-item" v-for="(item, index) in rankItems" :key="index" @click.stop="selectItem(item, $event)"
-                :class="{ compact: !needRank }">
-                <div class="rank-rating" v-show="needRank">
-                    <div class="line"></div>
-                    <span class="text">{{ page * 50 + index + 1 }}</span>
-                </div>
-                <div class="rank-info" :class="{ 'compact': !needRank }">
-                    <div class="info-img">
-                        <img :src="replaceUrl(item.images)" height="100" width="70" alt="" />
-                    </div>
-                    <div class="info-desc">
-                        <p class="title">{{ item.title }}</p>
-                        <Star :size="24" :score="item.rating" :showScore="showScore" />
-                        <div class="director">导演：{{ item.directors && item.directors[0] ? item.directors[0].name : '未知' }}</div>
-                        <div class="casts">主演：{{ item.casts && item.casts.length > 0 ? item.casts.slice(0, 2).map(item => item.name).join('/') : '未知' }}</div>
-                    </div>
-                </div>
-            </li>
-        </ul>
-        <LoadMore :hasMore="hasMore" v-show="rankItems.length && needLoading" />
-        <div class="rank-rating"></div>
-    </div>
+  <div class="rank-list">
+    <ul>
+      <!-- 遍历父组件传来的 rankItems 数组，为每个电影生成一个列表项 -->
+      <li class="rank-item" v-for="(item, index) in rankItems" :key="item.id" @click="selectItem(item)">
+        <!-- 如果需要显示排名 (needRank=true)，则显示排名 -->
+        <div class="rank-rating" v-if="needRank">
+          <span class="text">{{ page * 50 + index + 1 }}</span>
+        </div>
+        <!-- 电影信息容器 -->
+        <div class="rank-info" :class="{ 'compact': !needRank }">
+          <!-- 电影海报 -->
+          <div class="info-img">
+            <!-- 使用图片代理服务处理防盗链 -->
+            <img :src="replaceUrl(item.images)" height="100" width="70" alt="电影海报" />
+          </div>
+          <!-- 电影文字信息 -->
+          <div class="info-desc">
+            <p class="title">{{ item.title }}</p>
+            <!-- 显示评分星星组件 -->
+            <Star :size="24" :score="item.rating.average" :showScore="true" />
+            <!-- 显示导演信息 -->
+            <div class="director">
+              导演：{{ item.directors && item.directors[0] ? item.directors[0].name : '未知' }}
+            </div>
+            <!-- 显示主演信息 -->
+            <div class="actor">
+              主演：{{ formatActors(item.casts) }}
+            </div>
+          </div>
+        </div>
+      </li>
+    </ul>
+    <!-- 如果有更多数据且需要加载更多，则显示加载组件 -->
+    <LoadMore :hasMore="hasMore" v-if="hasMore && needLoading" />
+  </div>
 </template>
 
+<script setup>
+// 1. 导入子组件
+import Star from '../../base/star/star.vue';
+import LoadMore from '../../base/loadmore/loadmore.vue';
 
-<script setup name="RankList">
-//导入子组件
-import { ref } from 'vue'
-import Star from '../../base/star/star.vue'
-import LoadMore from '../../base/loadmore/loadmore.vue'
-
+// 2. 定义接收的 props
 const props = defineProps({
-    rankItems: {
-        type: Array,
-        default: () => []
-    },
-    hasMore: {
-        type: Boolean,
-        default: false
-    },
-    needLoading: {
-        type: Boolean,
-        default: true
-    },
-    needRank: {
-        type: Boolean,
-        default: true
-    },
-    page: {
-        type: Number,
-        default: 0
-    }
-})
-//定义emit 向父组件发送select事件
-const emit = defineEmits(['select'])
+  rankItems: { type: Array, default: () => [] }, // 电影列表数据
+  hasMore: { type: Boolean, default: false },   // 是否还有更多数据
+  needLoading: { type: Boolean, default: true }, // 是否需要显示加载更多
+  needRank: { type: Boolean, default: true },    // 是否需要显示排名
+  page: { type: Number, default: 0 },            // 当前页码 (用于计算排名)
+});
 
-//响应式数据
-const showScore = ref(true)
+// 3. 定义向父组件发送的事件
+const emit = defineEmits(['select']); // 当点击电影项时触发
 
-//方法
-const selectItem = (movie, e) => {
-    //忽略点击事件
-    if (!e) {
-        return
-    }
-    //向父组件发送 select事件 传递选中的电影数据
-    emit('select', movie)
-}
-//图片防盗链
-const replaceUrl = (srcUrl) => {
-    if (!srcUrl || typeof srcUrl === 'undefined') {
-        return ''
-    }
-    // 如果srcUrl已经是完整的图片对象，取large属性
-    if (typeof srcUrl === 'object' && srcUrl.large) {
-        return 'https://images.weserv.nl/?url=' + srcUrl.large.replace(/http\w{0,1}:\/\//, '')
-    }
-    // 如果srcUrl是字符串，直接处理
-    return 'https://images.weserv.nl/?url=' + srcUrl.replace(/http\w{0,1}:\/\//, '')
-}
+// 4. 方法
 
+// 格式化主演信息
+const formatActors = (casts) => {
+  if (!casts || !Array.isArray(casts) || casts.length === 0) {
+    return '未知';
+  }
+  // 取前两个演员的名字并用 '/' 连接
+  return casts.slice(0, 2).map(actor => actor.name).join(' / ');
+};
+
+// 处理图片防盗链
+const replaceUrl = (srcUrlObj) => {
+  // 检查图片对象是否存在且有 large 属性
+  if (!srcUrlObj || typeof srcUrlObj !== 'object' || !srcUrlObj.large) {
+    // 如果没有图片，可以返回一个默认图片的 URL 或空字符串
+    return ''; // 或者 return '/path/to/default-image.jpg';
+  }
+  // 使用 weserv.nl 代理服务处理图片防盗链
+  // 将原始 URL (可能包含 http 或 https) 的协议部分去掉
+  const originalUrl = srcUrlObj.large.replace(/^https?:\/\//, '');
+  // 构造代理 URL
+  return `https://images.weserv.nl/?url=${originalUrl}`;
+};
+
+// 处理点击事件，向父组件发送选中的电影
+const selectItem = (movie) => {
+  // 触发 'select' 事件，并将选中的电影数据传递给父组件
+  emit('select', movie);
+};
 </script>
 <style scoped>
 .rank-item {

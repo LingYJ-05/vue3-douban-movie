@@ -27,7 +27,7 @@
             <h2 class="title">剧情简介</h2>
             <p class="content">>&nbsp;&nbsp;&nbsp;&nbsp;{{ movieDetail.summary }}</p>
         </div>
-        <Scroll :class="casts" :scrollX="scrollX" :eventPassthrought="eventPassthrought" ref="scroll">
+        <Scroll :class="casts" :scrollX="scrollX" :eventPassthrough="eventPassthrought" ref="scroll">
             <div class="casts-content" ref="contentRef">
                 <h2 class="title">影人</h2>
                 <div class="cats-item" v-for="item in allCasts">
@@ -156,7 +156,6 @@ const saveWantedMovie = () => {
 //检查是否已看
 const iswanted = (id) => {
     const index = store.getters.wantedMovies.findIndex(item => item.id === id)
-    return item.id === id
     if (index > -1) {
         wantedText.value = '已想看'
         return true
@@ -167,7 +166,6 @@ const iswanted = (id) => {
 //检查是否已观看
 const isWatched = (id) => {
     const index = store.getters.watchedMovies.findIndex(item => item.id === id)
-    return index > -1
     if (index > -1) {
         hasWatched.value = true
         return true

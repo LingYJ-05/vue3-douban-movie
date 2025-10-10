@@ -4,7 +4,7 @@
             <li :key="item" @click="selectItem(item)" class="history-item" v-for="item in searches">
                 <span class="text">{{ item }}</span>
                 <span class="close" @click.stop="deleteOne(item)">
-                    <i class="icon-close">🗑️</i>
+                    <el-icon><Delete /></el-icon>
                 </span>
             </li>
         </ul>
@@ -14,6 +14,7 @@
 
 <script setup name="history-list">
 import { ref } from 'vue'
+import { Delete } from '@element-plus/icons-vue'
 
 // 定义 emits 事件
 const emit = defineEmits(['selected', 'delete'])
@@ -72,13 +73,12 @@ function deleteOne(item) {
     min-width: 30px; /* 确保图标有足够的空间 */
 }
 
-.icon-close {
+.close :deep(.el-icon) {
     font-size: 16px;
     color: #42bd56;
-    
 }
 
-.icon-close:hover {
+.close :deep(.el-icon:hover) {
     color: #e74c3c;
 }
 

@@ -14,8 +14,6 @@
 </template>
 
 <script setup name="LoadMore">
-import { defineProps } from 'vue'
-
 const props = defineProps({
   hasMore: {
     type: Boolean,

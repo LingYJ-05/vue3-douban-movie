@@ -8,7 +8,6 @@
 </template>
 
 <script setup name="switches">
-import { defineEmits } from 'vue'
 const emit = defineEmits(['switch'])
 
 const props = defineProps({

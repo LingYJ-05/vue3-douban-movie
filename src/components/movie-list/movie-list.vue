@@ -113,7 +113,7 @@ const replaceUrl = (srcUrl) => {
 const handleImageError = (e) => {
   // console.log('图片加载失败，使用占位图:', e.target.src)
   // 使用占位图替换加载失败的图片
-  e.target.src = 'https://via.placeholder.com/80x120?text=电影海报'
+  e.target.src = 'https://picsum.photos/80/120'
 }
 
 watch(function() {

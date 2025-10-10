@@ -1,14 +1,14 @@
 <template>
     <!-- 利用默认插槽实现内容滚动 -->
-    <div class="wrapper">
+    <div class="wrapper" ref="wrapper">
         <slot></slot>
     </div>
 </template>
 
 
-<script setup name="scroll">
+<script setup name="Scroll">
 import BScroll from 'better-scroll';
-import { ref, onMounted, nextTick, defineExpose } from 'vue';
+import { ref, onMounted, nextTick } from 'vue';
 
 const props = defineProps({
     click: {      //是否支持点击

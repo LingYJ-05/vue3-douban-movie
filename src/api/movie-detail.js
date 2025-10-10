@@ -12,8 +12,8 @@ export function getMovieDetail(id){
         params: data
     }).then((res) => {
         return Promise.resolve(res.data)
-    }).catch((err) => {
-        // console.log('获取电影详情失败:', err);
+    }).catch((error) => {
+        // console.log('获取电影详情失败:', error);
         // 返回模拟数据，使用传入的id
         const detail = {
             ...mockMovieDetail,
@@ -31,8 +31,8 @@ export function getMovieReview(id){
         params: data
     }).then((res) => {
         return Promise.resolve(res.data)
-    }).catch((err) => {
-        // console.log('获取电影影评失败:', err);
+    }).catch((error) => {
+        // console.log('获取电影影评失败:', error);
         // 返回模拟数据
         return Promise.resolve(mockMovieReviews);
     })
@@ -47,8 +47,8 @@ export function getAllReviews(id,start,count){
         params: data
     }).then((res) => {
         return Promise.resolve(res.data)
-    }).catch((err) => {
-        // console.log('获取所有影评失败:', err);
+    }).catch((error) => {
+        // console.log('获取所有影评失败:', error);
         // 返回模拟数据
         return Promise.resolve(mockMovieReviews);
     })
@@ -64,8 +64,8 @@ export function getAllComments(id,start,count){
         params: data
     }).then((res) => {
         return Promise.resolve(res.data)
-    }).catch((err) => {
-        // console.log('获取电影短评失败:', err);
+    }).catch((error) => {
+        // console.log('获取电影短评失败:', error);
         // 返回模拟数据
         return Promise.resolve(mockMovieComments);
     })

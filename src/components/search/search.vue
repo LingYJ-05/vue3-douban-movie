@@ -1,164 +1,130 @@
 <template>
     <transition name="fade">
-        <!-- 搜索页 -->
         <div class="search">
-            <!-- 使用 search-box 组件 -->
-            <search-box @query="onQueryChange" :tagSearch="tagSearch" ref="searchBox" v-show="!tagSearch"></search-box>
+            <!-- 搜索框 -->
+            <search-box @query="onQueryChange" :tagSearch="tagSearch" ref="searchBox" v-show="!tagSearch" />
 
+            <!-- 固定标题栏 -->
             <div class="fixed-title" v-show="tagSearch">
                 <span class="back" @click="back">
                     <span class="icon-back">←</span>
                 </span>
-                <span class="type">
-                    <span>关于{{ localQuery || '搜索' }}的电影</span>
-                </span>
+                <span class="type">关于{{ localQuery || '搜索' }}的电影</span>
             </div>
+
+            <!-- 快捷搜索 -->
             <div class="shortcut-wrapper" v-show="!localQuery">
-                <div class="">
-                    <div class="tag-list">
-                        <div class="douban-tag tag">
-                            <span v-for="item in doubanTag" :key="item" @click="tagSearchChange(item)">{{ item }}</span>
-                        </div>
-                        <div class="movie-tag tag">
-                            <span v-for="item in movieTag" :key="item" @click="tagSearchChange(item)">{{ item }}</span>
-                        </div>
-                        <div class="country-tag tag">
-                            <span v-for="item in countryTag" :key="item" @click="tagSearchChange(item)">{{ item
-                                }}</span>
-                        </div>
+                <div class="tag-list">
+                    <div class="douban-tag tag">
+                        <span v-for="item in doubanTag" :key="item" @click="tagSearchChange(item)">
+                            {{ item }}
+                        </span>
                     </div>
-                    <div class="search-history">
-                        <h1 class="title">
-                            <span class="text">搜索历史</span>
-                            <span class="clear" @click="clearConfirm">
-                                <i class="icon-bin">🗑️</i>
-                            </span>
-                        </h1>
-                        <history-list :searches="searchHistory" @selected="addQuery" @delete="deleteOne"></history-list>
+                    <div class="movie-tag tag">
+                        <span v-for="item in movieTag" :key="item" @click="tagSearchChange(item)">
+                            {{ item }}
+                        </span>
+                    </div>
+                    <div class="country-tag tag">
+                        <span v-for="item in countryTag" :key="item" @click="tagSearchChange(item)">
+                            {{ item }}
+                        </span>
                     </div>
                 </div>
+
+                <div class="search-history">
+                    <h1 class="title">
+                        <span class="text">搜索历史</span>
+                        <span class="clear" @click="showConfirm">
+                           <el-button type="primary" icon="Delete" />
+                        </span>
+                    </h1>
+                    <history-list :searches="searchHistory" @selected="addQuery" @delete="deleteOne" />
+                </div>
             </div>
+
             <!-- 搜索结果 -->
-            <div class="search-result" v-show="localQuery" ref="searchResult" :class="{ 'tag-search': tagSearch }">
+            <div class="search-result" v-show="localQuery" ref="searchResult">
                 <suggest :query="localQuery" :tag-search="tagSearch"></suggest>
             </div>
-            <confirm ref="confirm" text="确定要清空搜索历史吗？" confirmBtnText="清空" @confirm="clearSearchHistory"></confirm>
+
+            <confirm ref="confirm" text="确定要清空搜索历史吗？" confirmBtnText="清空" @confirm="clearSearchHistory" />
         </div>
     </transition>
 </template>
 
-<script setup name="search">
+<script setup>
 import { ref, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
-// 使用正确的相对路径导入 search-box 组件
 import SearchBox from '../../base/search-box/search-box.vue'
 import HistoryList from '../../base/history-list/history-list.vue'
 import Suggest from '../../components/suggest/suggest.vue'
 import Confirm from '../../base/confirm/confirm.vue'
 
-
-const confirm = ref(null)
+// 响应式数据
 const route = useRoute()
+const confirm = ref(null)
+const searchBox = ref(null)
 const searchResult = ref(null)
-const searchBox = ref(null) // 添加 searchBox 引用
+const scroll = ref(null)
 const tagSearch = ref('')
-const localQuery = ref('') // 使用一个新的局部变量
-const doubanTag = ['经典', '豆瓣高分', '冷门佳片'];
-const movieTag = ['剧情', '爱情', '喜剧', '科幻', '动作', '悬疑', '治愈', '青春', '文艺'];
-const countryTag = ['中国', '美国', '日本', '韩国', '英国', '法国', '德国', '意大利', '西班牙', '澳大利亚'];
+const localQuery = ref('')
 const searchHistory = ref([])
 
-// 处理路由参数
+// 标签数据
+const doubanTag = ['经典', '豆瓣高分', '冷门佳片']
+const movieTag = ['剧情', '爱情', '喜剧', '科幻', '动作', '悬疑', '治愈', '青春', '文艺']
+const countryTag = ['中国', '美国', '日本', '韩国', '英国', '法国', '德国', '意大利', '西班牙', '澳大利亚']
+
+// 页面加载时处理路由参数
 onMounted(() => {
-    // 从路由参数中获取搜索词
-    if (route.query && route.query.q) {
-        const searchQuery = route.query.q
-        // console.log('从路由参数获取搜索词:', searchQuery)
-        addQuery(searchQuery)
+    if (route.query.q) {
+        addQuery(route.query.q)
     }
 })
 
-
-function clearSearchHistory(){
-    // 真正执行清空操作的函数
-    // console.log('清空搜索历史')
-    searchHistory.value = []
-}
-
-// 点击清空按钮时显示确认对话框
-function clearConfirm() {
-    confirm.value.show()
-}
-
-// 返回
-function back() {
-    localQuery.value = ''
-    tagSearch.value = ''
-}
-
+// 搜索历史管理
 function addQuery(query) {
-    // 确保query是有效的字符串
-    if (!query || typeof query !== 'string' || query.trim() === '') {
-        // console.warn('无效的搜索词');
-        return;
-    }
-    const safeQuery = getSafeQueryString(query)
-    if (safeQuery && !searchHistory.value.includes(safeQuery)) {
+    if (!query?.trim()) return
+
+    const safeQuery = String(query).trim()
+    if (!searchHistory.value.includes(safeQuery)) {
         searchHistory.value.push(safeQuery)
-        localQuery.value = safeQuery
     }
+    localQuery.value = safeQuery
 }
 
-function deleteOne(item) {
+function deleteOne(item){
+    // 保留不等于删除项的其他项
     searchHistory.value = searchHistory.value.filter(i => i !== item)
 }
 
+// 清空搜索历史
+function clearSearchHistory() {
+    searchHistory.value = []
+}
+
+function showConfirm() {
+    confirm.value.show()
+}
+
+// 搜索相关
 function onQueryChange(query) {
-    // 确保query是安全的字符串
-    const safeQuery = getSafeQueryString(query)
-    if (safeQuery) {
-        addQuery(safeQuery)
-    }
+    addQuery(query)
 }
 
 function tagSearchChange(query) {
-    // 确保query是安全的字符串
-    const safeQuery = getSafeQueryString(query)
-    if (safeQuery) {
-        localQuery.value = safeQuery
-        tagSearch.value = safeQuery
-    }
+    localQuery.value = query
+    tagSearch.value = query
 }
 
-// 辅助函数：获取安全的查询字符串
-function getSafeQueryString(value) {
-    // 检查是否是Promise对象
-    if (value && typeof value === 'object' && typeof value.then === 'function') {
-        console.warn('接收到Promise对象作为查询参数，无法直接使用')
-        return ''
+function back() {
+    localQuery.value = ''
+    tagSearch.value = ''
+    if (route.path !== '/') {
     }
-
-    // 确保返回一个字符串
-    if (value === null || value === undefined) {
-        return ''
-    }
-
-    if (typeof value === 'object') {
-        try {
-            // 尝试将对象序列化为JSON字符串
-            return JSON.stringify(value)
-        } catch (e) {
-            // 如果序列化失败，返回toString结果
-            return String(value)
-        }
-    }
-
-    // 对于原始类型，直接转换为字符串
-    return String(value).trim()
 }
-
 </script>
-
 <style scoped>
 .search {
     position: fixed;

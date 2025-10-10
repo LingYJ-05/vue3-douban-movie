@@ -3,19 +3,20 @@
         <div class="to-top" @click="toTop" v-show="result.length">
             <span>返回顶部</span>
         </div>
-        <Scroll class="suggest" :pullup="pullup" :beforeScroll="beforeScroll" @beforeScroll="listScroll"
+        <Scroll class="suggest" :pullup="pullup" :beforeScroll="enableBeforeScroll" @beforeScroll="listScroll"
             @scrollEnd="searchMore" ref="suggestRef">
             <ul class="suggest-list">
-                <li class="suggest-item" v-for="item in result" :key="item.id || item.title"
+                <li class="suggest-item" v-for="item in result" :key="item?.id || item?.title || 'unknown'"
                     v-if="item && typeof item === 'object' && item.subtype !== 'tv'" @click="selectItem(item)">
                     <div class="item-pic">
-                        <img v-lazy="replaceImgUrl(item.image)" width="50" height="70" @error="handleImageError" :alt="(item.title || '未知电影') + '海报'">
+                        <img v-lazy="replaceImgUrl(item?.image)" width="50" height="70" @error="handleImageError"
+                            :alt="(item?.title || '未知电影') + '海报'">
                     </div>
                     <div class="item-info">
-                        <div class="title">{{ item.title || '未知电影' }}</div>
+                        <div class="title">{{ item?.title || '未知电影' }}</div>
                         <div class="info">
-                            <span class="rating">{{ getRating(item.rating) }}</span>
-                            <span class="pubdate">{{ getPubDate(item.pubdate) }}</span>
+                            <span class="rating">{{ getRating(item?.rating) }}</span>
+                            <span class="pubdate">{{ getPubDate(item?.pubdate) }}</span>
                         </div>
                     </div>
                 </li>
@@ -46,6 +47,7 @@ const props = defineProps({
         default: ''
     },
 })
+
 //定义emit
 const emit = defineEmits(['select', 'listScroll'])
 //定义Router
@@ -59,7 +61,7 @@ const result = ref([])
 const hasMore = ref(true)
 const noResult = ref(false)
 const pullup = ref(false)
-const beforeScroll = ref(true)
+const enableBeforeScroll = ref(true)
 const loadingFlag = ref(true)
 const fullScreen = ref(true)
 const dataFn = ref(null)
@@ -71,7 +73,8 @@ const toTop = () => {
         suggestRef.value.scroll.scrollTo(0, 0, 200);
     }
 }
-const search = async () => {   //重置一些值
+
+const search = async () => {
     result.value = []
     hasMore.value = true
     loadingFlag.value = true
@@ -96,14 +99,17 @@ const search = async () => {   //重置一些值
         } else {
             noResult.value = false
         }
-        result.value = createSearchList(res.subjects)
+        // 过滤掉非对象类型的数据
+        const validSubjects = res.subjects.filter(subject => subject && typeof subject === 'object')
+        result.value = createSearchList(validSubjects)
     } catch (err) {
         // console.log('search error', err)
     }
 }
+
 const searchMore = async () => {
     //防止重复加载
-    if (!loadingFlag.value || hasMore.value) {
+    if (!loadingFlag.value || !hasMore.value) { // ✅ 修复：修正条件逻辑
         return
     }
     loadingFlag.value = false
@@ -114,7 +120,9 @@ const searchMore = async () => {
         const res = await dataFn.value(searchParam, searchIndex.value, SEARCH_MORE)
         // 确保res不为空且有subjects属性
         if (res && res.subjects) {
-            result.value = result.value.concat(createSearchList(res.subjects))//合并数据
+            // 过滤掉非对象类型的数据
+            const validSubjects = res.subjects.filter(subject => subject && typeof subject === 'object')
+            result.value = result.value.concat(createSearchList(validSubjects))//合并数据
             checkMore(res)
         }
         loadingFlag.value = true
@@ -123,6 +131,7 @@ const searchMore = async () => {
         // console.log('search error', err)
     }
 }
+
 const getPubDate = (data) => {
     if (!data || !data.length) return ''
     let pubdate = ''
@@ -137,12 +146,14 @@ const getPubDate = (data) => {
     }
     return pubdate ? '/' + pubdate : ''
 }
+
 const getRating = (rate) => {
-    if (rate === 0) {
+    if (!rate || rate === 0) {
         return '暂无评分'
     }
     return rate + '分'
 }
+
 // 跳转详情页
 const selectItem = (item) => {
     if (item && item.id) {
@@ -158,43 +169,51 @@ const selectItem = (item) => {
     }
 }
 
+// 添加loadMore函数以解决报错问题
+const loadMore = () => {
+    // 可以留空或者调用searchMore
+    console.log('滚动到底部，加载更多')
+}
 
 const listScroll = () => {
     //移动端搜索时，键盘防遮挡
     emit('listScroll')
 }
+
 //图片防盗锁和错误处理
 const replaceImgUrl = (srcUrl) => {
     try {
         // 确保srcUrl是有效的字符串
         if (!srcUrl || typeof srcUrl !== 'string') {
             // 返回占位图作为默认值
-            return 'https://via.placeholder.com/80x120?text=Movie+Poster'
+            return 'https://dummyimage.com/80x120/ccc/fff&text=Movie+Poster'
         }
-        
+
         // 如果URL已经是占位图或weserv.nl代理的URL，则不再处理
-        if (srcUrl.includes('placeholder.com') || srcUrl.includes('weserv.nl')) {
+        if (srcUrl.includes('dummyimage.com') || srcUrl.includes('weserv.nl')) {
             return srcUrl
         }
-        
+
         // 移除协议部分并添加图片代理服务
         return 'https://images.weserv.nl/?url=' + srcUrl.replace(/http\w{0,1}:\/\//, '').replace('/img/', '/img/w100/')
     } catch (error) {
         console.error('图片URL处理错误:', error)
-        return 'https://via.placeholder.com/80x120?text=Movie+Poster'
+        return 'https://dummyimage.com/80x120/ccc/fff&text=Movie+Poster'
     }
 }
 
 // 处理图片加载错误
 const handleImageError = (e) => {
     // console.log('电影海报加载失败，使用占位图')
-    e.target.src = 'https://via.placeholder.com/80x120?text=Movie+Poster'
+    e.target.src = 'https://dummyimage.com/80x120/ccc/fff&text=Movie+Poster'
 }
+
 const checkMore = (data) => {
     if (!data || !data.subjects || !data.subjects.length || data.start + data.count >= data.total) {
         hasMore.value = false
     }
 }
+
 const selectType = (movie) => {
     store.commit('SET_MOVIE', movie)
 }
@@ -225,6 +244,7 @@ watch(() => [props.tagSearch, props.query], ([newTag, newQuery]) => {
         search()
     }
 }, { immediate: true })
+
 watch(
     () => props.query,
     (newQuery) => {

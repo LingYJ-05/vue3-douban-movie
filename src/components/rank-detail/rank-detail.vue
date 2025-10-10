@@ -5,188 +5,177 @@
             <span class="back" @click="back">
                 <i class="icon-back">←</i>
             </span>
-            <span class="type">
-                <span>{{ rankType }}</span>
-            </span>
+            <span class="type">{{ rankType }}</span>
         </div>
+
         <!-- Top250 分页切换 -->
-        <Switches v-if="rankType === '豆瓣 Top250'" :switches="switches" :currentIndex="currentIndex"
-            :smallFont="smallFont" @switch="switchTab" />
-        <Scroll v-for="(scrollItem, index) in switches" v-show="currentIndex === index" :data="RankList[index]"
-            :pullup="pullup" :key="index" :probeType="probeType" :listenScroll="listenScroll" @scrollToEnd="loadMore"
-            @scroll="scroll" class="rank-list-wrapper" ref="scrollRef">
-            <div class="rank-content" :class="{ 'more-padding': rankType === '豆瓣 Top250' }">
-                <RankList :rankItems="rankList[index]" :hasMore="hasMore" :page="index" @select="selectMovie" />
+        <Switches v-if="isTop250" :switches="switches" :currentIndex="currentIndex" :smallFont="true"
+            @switch="switchTab" style="z-index: 200;" />
+        <!-- 调试信息 -->
+        <div style="color: red; text-align: center; font-size: 12px;">
+            isTop250: {{ isTop250 }}, rankType: {{ rankType }}
+        </div>
+
+        <Scroll :data="currentRankList" :pullup="true" :probeType="3" :listenScroll="true" @scrollToEnd="loadMore"
+            @scroll="handleScroll" class="rank-list-wrapper" ref="scrollRef">
+            <div class="rank-content" :class="{ 'more-padding': isTop250 }">
+                <RankList :rankItems="currentRankList" :hasMore="hasMore" @select="selectMovie" />
             </div>
-            <LoadMore :fullScreen="fullScreen" v-if="!rankList[index].length" />
+            <LoadMore :fullScreen="true" v-if="!currentRankList.length" />
         </Scroll>
     </div>
-
-
 </template>
 
-
 <script setup name="RankDetail">
-import { ref, nextTick, onMounted, onBeforeMount } from 'vue';
+import { ref, onMounted, computed } from 'vue';
+import { useRoute, useRouter } from 'vue-router';
+import { useStore } from 'vuex';
+import { createRankList } from '../../common/js/movieList';
+import { top250Rank, weeklyRank, newMoviesRank, usRank } from '../../api/movie-rank';
 import Switches from '../../base/switches/switches.vue';
 import Scroll from '../../base/scroll/scroll.vue';
 import RankList from '../rank-list/rank-list.vue';
 import LoadMore from '../../base/loadmore/loadmore.vue';
-import { useRoute, useRouter } from 'vue-router';
-import { useStore } from 'vuex'
-import { createRankList } from '../../common/js/movieList'
-import { top250Rank, weeklyRank, newMoviesRank, usRank } from '../../api/movie-rank';
 
-//定义响应式数据
+// 路由和状态
 const route = useRoute();
 const router = useRouter();
 const store = useStore();
 
-const SEARCH_MORE = 10
-//基本数据
-const rankType = ref('')
-const dataFn = ref(null)
-const currentIndex = ref(0)
-const fullScreen = ref(true)
-const pullup = ref(true)
-const probeType = ref(3)
-const listenScroll = ref(true)
+// 基础数据
+const rankType = ref('豆瓣 Top250');
+const dataFn = ref(top250Rank);
+const isTop250 = ref(true);
 
-//分页相关
+// 分页数据（仅Top250使用）
+const currentIndex = ref(0);
 const switches = ref([
     { name: '1-50' },
     { name: '51-100' },
     { name: '101-150' },
     { name: '151-200' },
     { name: '201-250' }
-])
-const smallFont = ref(true)
-const movieIndex = ref([0, 50, 100, 150, 200])
-const scrollY = ref([0, 0, 0, 0, 0])
-//列表数据
-const rankList = ref({})
-const hasMore = ref([false, false, false, false, false])
-const loadingFlag = ref(true)
+]);
 
-//滚动引用
-const scrollRef = ref(null)
+// 列表数据
+const rankLists = ref([]); // 存储所有分页的数据
+const hasMore = ref(true);
+const isLoading = ref(false);
+// const start = ref(0);
 
-//方法
-//返回上一页
-const back = () => {
-    router.back('/rank')
-}
-//滚动事件处理
-const scroll = (pos) => {
-    scrollY.value[currentIndex.value] = pos.y
-}
-//切换标签分页
+
+// 滚动引用
+const scrollRef = ref(null);
+
+// 当前显示的列表
+const currentRankList = computed(() => {
+    return isTop250.value ? rankLists.value[currentIndex.value] || [] : rankLists.value[0] || [];
+});
+
+// 方法
+const back = () => router.back('/rank');
+
+const handleScroll = (pos) => {
+    if (pos > 0) {
+        store.commit('SET_SCROLL_POSITION', pos);
+    }
+    // 滚动到上次保存的位置
+    if (pos === 0) {
+        pos = store.state.scrollPosition || 0;
+    }
+    // 滚动到指定位置
+    if (scrollRef.value) {
+        scrollRef.value.scrollTo(0, pos, 300);
+    }
+    // 保存当前滚动位置
+    store.commit('SET_SCROLL_POSITION', pos);
+
+};
+
 const switchTab = (index) => {
-    currentIndex.value = index
-    loadingFlag.value = true
+    currentIndex.value = index;
 
+    // 如果当前分页没有数据，加载数据
+    if (!rankLists.value[index]) {
+        // index为点击的索引 如果是0-50 则从0开始加载 如果index=1 则51-100以此类推
+        loadRankData(index * 50, 50, index);
+    }
+
+    // 刷新滚动组件
     nextTick(() => {
-        //重新计算滚动位置
-        if (scrollRef.value && scrollRef.value.length > 0) {
-            scrollRef.value.forEach((item) => {
-                item.scrollTo(0, scrollY.value[index])
-                setTimeout(() => {
-                    item.refresh()
-                }, 20)
-            })
+        if (scrollRef.value) {
+            scrollRef.value.refresh();
         }
-        if (!rankList.value[index] || (rankList.value[index] && rankList.value[index].length === 0)) {
-            hasMore.value[index] = true
-            dataFn.value(movieIndex.value[index], SEARCH_MORE).then((res) => {
-                rankList.value[index] = createRankList(res.subjects)
-            })
-        }
-    })
-}
+    });
+};
 
-//选择电影
 const selectMovie = (movie) => {
-    router.push(`/movie/${movie.id}`)
-    store.commit('SET_MOVIE', movie)
-}
-//加载更多数据
-const loadMore = () => {
-    const index = currentIndex.value
-    //防止重复数据
-    if (!loadingFlag.value) {
-        return
-    }
-    loadingFlag.value = false
-    if (!hasMore.value[index]) {
-        return
-    }
-    movieIndex.value[index] += SEARCH_MORE
-    dataFn.value(movieIndex.value[index], SEARCH_MORE).then((res) => {
-        rankList.value[index] = rankList.value[index].concat(createRankList(res.subjects))
-        checkMore(res)
-        loadingFlag.value = true
-    })
-}
+    router.push(`/movie/${movie.id}`);
+    store.commit('SET_MOVIE', movie);
+};
 
-//检查是否还有更多数据
-const checkMore = (data) => {
-    const movies = data.subjects
-    const end = 50 * (currentIndex.value + 1)
-    if (!movies.length || data.start + data.count >= end) {
-        hasMore.value[currentIndex.value] = false
+const loadMore = async () => {
+    //正在加载或者不需要更多数据时
+    if (isLoading.value || !hasMore.value) return;
+    isLoading.value = true;
+
+    const startIndex = isTop250.value ?
+    //当前页面是从index50并且+已经加载的数据
+        currentIndex.value * 50 + currentRankList.value.length :
+        //
+        rankLists.value[0]?.length || 0;
+
+    try {
+        await loadRankData(startIndex, 10, currentIndex.value);
+    } finally {
+        isLoading.value = false;
     }
-}
+};
 
-//选择榜单类型
-const selectType = () => {
-    const type = route.params.rankType
+const loadRankData = async (start, count, index) => {
+    const res = await dataFn.value(start, count);
+    const newMovies = createRankList(res.subjects);
 
-    switch (type) {
-        case 'top250':
-            dataFn.value = top250Rank
-            rankType.value = '豆瓣 Top250'
-            break
-        case 'weekly':
-            dataFn.value = weeklyRank
-            rankType.value = '本周口碑榜'
-            break
-        case 'new':
-            dataFn.value = newMoviesRank
-            rankType.value = '新片榜'
-            break
-        case 'us':
-            dataFn.value = usRank
-            rankType.value = '北美票房榜'
-            break
+    if (!rankLists.value[index]) {
+        rankLists.value[index] = [];
     }
-}
 
-//获取榜单数据
-const getRankList = () => {
-    if (rankType.value !== '豆瓣 Top250') {
-        //非top250榜单
-        dataFn.value().then((res) => {
-            rankList.value[0] = createRankList(res.subjects)
-        })
+    if (start === 0 || !isTop250.value) {
+        rankLists.value[index] = newMovies;
     } else {
-        //top250榜单分页
-        dataFn.value(movieIndex.value[0], SEARCH_MORE).then((res) => {
-            rankList.value[0] = createRankList(res.subjects)
-            hasMore.value[0] = true
-        })
+        rankLists.value[index] = [...rankLists.value[index], ...newMovies];
     }
-}
-//生命周期
-onBeforeMount(() => {
-    //为每个分页初始化空数组
-    for (let i = 0; i < switches.value.length; i++) {
-        rankList.value[i] = []
+
+    // 检查是否还有更多数据
+    hasMore.value = res.subjects.length === count &&
+        res.start + res.count < (isTop250.value ? 50 : 100); // 根据榜单类型设置上限
+};
+
+const selectType = () => {
+    const type = route.params.rankType;
+    const typeConfig = {
+        'top250': { fn: top250Rank, name: '豆瓣 Top250', isTop250: true },
+        'weekly': { fn: weeklyRank, name: '本周口碑榜', isTop250: false },
+        'new': { fn: newMoviesRank, name: '新片榜', isTop250: false },
+        'us': { fn: usRank, name: '北美票房榜', isTop250: false }
+    };
+
+    const config = typeConfig[type];
+    if (config) {
+        dataFn.value = config.fn;
+        rankType.value = config.name;
+        isTop250.value = config.isTop250;
     }
-})
+};
+
+const getRankList = async () => {
+    await loadRankData(0, isTop250.value ? 50 : 100, currentIndex.value);
+};
+
 onMounted(() => {
-    selectType()
-    getRankList()
-})
+    selectType();
+    getRankList();
+});
 </script>
 
 <style scoped>
@@ -227,15 +216,26 @@ onMounted(() => {
     color: #333;
 }
 
+/* 修复Switches组件的样式 */
 .switches {
     position: fixed;
     top: 50px;
     width: 100%;
-    height: 40px;
+    height: auto;
     z-index: 200;
     background-color: #fff;
+    margin: 0;
+    padding: 0;
 }
 
+/* 确保switches-item的样式正确 */
+.switches-item {
+    list-style: none !important;
+    margin: 0 !important;
+    padding: 0 !important;
+}
+
+/* 修复滚动容器的样式 */
 .rank-list-wrapper {
     position: fixed;
     top: 0;
@@ -243,6 +243,7 @@ onMounted(() => {
     left: 0;
     right: 0;
     background: #fff;
+    z-index: 100;
 }
 
 .rank-content {
@@ -251,5 +252,12 @@ onMounted(() => {
 
 .rank-content.more-padding {
     padding-top: 90px;
+}
+
+/* 确保ul和li没有默认样式 */
+.switches ul, .switches li {
+    list-style: none !important;
+    margin: 0 !important;
+    padding: 0 !important;
 }
 </style>
