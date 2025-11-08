@@ -2,68 +2,119 @@
   <div class="detail-wrapper">
     <!-- 固定标题栏 -->
     <div class="fixed-title">
-      <span class="back" @click="back">
-        <i class="icon-back"></i>
-      </span>
+      <el-button 
+        type="text" 
+        @click="back" 
+        class="back-btn"
+        :icon="ArrowLeft"
+      />
       <span class="type" ref="fixedRef">
         影人
       </span>
     </div>
 
     <!-- 影人详情内容 -->
-    <scroll class="celebrity-detail" v-if="celebrityDetail.avatars" :data="celebrityDetail">
+    <div v-if="celebrityDetail.avatars" class="celebrity-detail">
       <div class="scroll-wrapper">
         <!-- 头像区域 -->
         <div class="bg-image" ref="imageRef">
-          <img v-lazy="replaceUrl(celebrityDetail.avatars?.large)" />
+          <el-image 
+            :src="replaceUrl(celebrityDetail.avatars?.large)" 
+            fit="contain" 
+            lazy 
+            class="avatar"
+          >
+            <template #error>
+              <img src="https://via.placeholder.com/300x450?text=影人头像" />
+            </template>
+          </el-image>
         </div>
 
         <!-- 影人信息 -->
         <div class="celebrity-info">
-          <div class="main">
-            <h1 class="name-cn">{{ celebrityDetail.name }}</h1>
-            <span class="name-en">{{ celebrityDetail.name_en }}</span>
+          <el-card shadow="never" class="info-card">
+            <div class="main">
+              <h1 class="name-cn">{{ celebrityDetail.name }}</h1>
+              <span class="name-en">{{ celebrityDetail.name_en }}</span>
 
-            <!-- 收藏按钮 -->
-            <div class="collect" @click="saveCollect" :class="{ 'has-collected': isCollected }">
-              <i class="icon" :class="collectClass"></i>
-              <span class="text">{{ collectText }}</span>
+              <!-- 收藏按钮 -->
+              <el-button 
+                @click="saveCollect" 
+                :type="isCollected ? 'primary' : 'default'"
+                size="small"
+                :icon="isCollected ? Check : Star"
+                class="collect-btn"
+              >
+                {{ collectText }}
+              </el-button>
             </div>
-          </div>
 
-          <!-- 个人简介 -->
-          <div class="brief">
-            <div class="title">个人简介</div>
-            <p class="text" @click="showInfo">
-              {{ celebrityDetail.summary }}
-              <span class="more"><i class="icon-keyboard_arrow_right"></i></span>
-            </p>
-          </div>
+            <!-- 个人简介 -->
+            <div class="brief">
+              <div class="title">个人简介</div>
+              <p class="text" @click="showInfo">
+                {{ celebrityDetail.summary }}
+                <el-icon class="more"><Right /></el-icon>
+              </p>
+            </div>
+          </el-card>
 
           <!-- 代表作品 -->
-          <scroll class="works" :scrollX="scrollX" :eventPassthrough="eventPassthrough" ref="scrollRef"
-            v-if="works.length">
-            <div class="works-content" ref="contentRef">
-              <h2 class="title">代表作品</h2>
-              <div class="work-item" v-for="item in works" :key="item.id" @click="selectWork(item)">
-                <img v-lazy="replaceUrl(item.image)" width="90" height="120">
-                <h3 class="item-title">{{ item.title }}</h3>
-                <Star :score="item.rating" :showScore="showScore"></Star>
+          <div v-if="works.length" class="works-section">
+            <h2 class="title">代表作品</h2>
+            <el-scrollbar wrap-class="works-scrollbar" height="220px">
+              <div class="works-content" ref="contentRef">
+                <div class="work-item" v-for="item in works" :key="item.id" @click="selectWork(item)">
+                  <el-image 
+                    :src="replaceUrl(item.image)" 
+                    width="90" 
+                    height="120" 
+                    lazy 
+                    fit="cover"
+                    class="work-image"
+                  >
+                    <template #error>
+                      <div class="image-slot">
+                        <el-icon><Film /></el-icon>
+                      </div>
+                    </template>
+                  </el-image>
+                  <h3 class="item-title">{{ item.title }}</h3>
+                  <el-rate 
+                    v-model="item.rating" 
+                    :max="10" 
+                    :show-score="showScore" 
+                    allow-half 
+                    readonly 
+                    size="small"
+                  />
+                </div>
               </div>
-            </div>
-          </scroll>
+            </el-scrollbar>
+          </div>
 
           <!-- 查看全部作品 -->
-          <div class="allWorks" @click="getAllWorks">
+          <el-button 
+            @click="getAllWorks" 
+            type="primary" 
+            plain 
+            class="all-works-btn"
+            icon="Right"
+          >
             查看全部作品
-            <i class="icon-keyboard_arrow_right"></i>
-          </div>
+          </el-button>
         </div>
       </div>
-    </scroll>
+    </div>
 
     <!-- 加载动画 -->
-    <loadmore :fullScreen="fullScreen" v-if="!celebrityDetail.avatars"></loadmore>
+    <el-loading 
+      v-if="!celebrityDetail.avatars" 
+      v-loading="true" 
+      class="full-screen-loading"
+      text="加载中..."
+    >
+    </el-loading>
 
     <!-- 影人信息弹窗 -->
     <celebrity-info :infoLists="celebrityDetail" ref="infoRef"></celebrity-info>
@@ -78,9 +129,8 @@
 import { ref, computed, onMounted, nextTick } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
 import { useStore } from 'vuex';
-import Scroll from 'base/scroll/scroll';
-import Loadmore from 'base/loadmore/loadmore';
-import Star from '../../base/star/star.vue';
+import { ElButton, ElImage, ElRate, ElLoading, ElScrollbar, ElIcon } from 'element-plus';
+import { ArrowLeft, Check, Star, Right, Film } from '@element-plus/icons-vue';
 import CelebrityInfo from 'components/celebrity-info/celebrity-info';
 import { createMovieList } from '../../common/js/movieList';
 import Celebrity from '../../common/js/celebrity';
@@ -89,9 +139,6 @@ import { getCelebrity } from '../../api/celebrity';
 // 2. 创建响应式数据
 const celebrityDetail = ref({}); // 影人详情
 const works = ref([]); // 代表作品列表
-const scrollX = ref(true);
-const eventPassthrough = ref('vertical');
-const fullScreen = ref(true);
 const showScore = ref(true);
 const collectText = ref('收藏');
 const isCollected = ref(false);
@@ -100,7 +147,6 @@ const celebrity = ref(null); // 影人对象
 // 3. 创建引用
 const fixedRef = ref(null);
 const imageRef = ref(null);
-const scrollRef = ref(null);
 const contentRef = ref(null);
 const infoRef = ref(null);
 
@@ -109,16 +155,11 @@ const router = useRouter();
 const route = useRoute();
 const store = useStore();
 
-// 5. 计算属性
-const collectClass = computed(() => {
-  return isCollected.value === false ? 'icon-collect' : 'icon-checkmark';
-});
-
 // 从store中获取getter
 const currentCelebrityId = computed(() => store.getters.currentCelebrityId);
 const collectedCelebrities = computed(() => store.getters.collectedCelebrities);
 
-// 6. 方法定义
+// 5. 方法定义
 
 // 返回上一页
 const back = () => {
@@ -148,8 +189,6 @@ const getAllWorks = () => {
 
 // 选择作品
 const selectWork = (movie) => {
-  // 在Vue3中，event._constructed可能不再适用
-  // 如果使用了自定义scroll组件，可能需要其他方式来区分事件
   store.commit('SET_MOVIE', movie);
   router.push({
     path: `/movie/${movie.id}`

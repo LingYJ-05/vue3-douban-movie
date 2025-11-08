@@ -1,12 +1,9 @@
 import { createRouter, createWebHashHistory } from 'vue-router'
-import AllDiscussion from '../components/all-discussion/all-discussion.vue'
-import MovieReview from '../components/movie-review/movie-review.vue'
 
-// 定义路由配置
 const routes = [
   {
     path: '/',
-    redirect: '/movie-show' // 重定向到热映页面
+    redirect: '/movie-show'
   },
   {
     path: '/movie-show',
@@ -19,8 +16,28 @@ const routes = [
     component: () => import('../components/rank/rank.vue'),
     children: [
       {
-        path: ':rankType',
-        name: 'rank-detail',
+        path: '',
+        name: 'rank-default',
+        redirect: { name: 'top250' }
+      },
+      {
+        path: 'top250',
+        name: 'top250',
+        component: () => import('../components/rank-detail/rank-detail.vue')
+      },
+      {
+        path: 'weekly',
+        name: 'weekly',
+        component: () => import('../components/rank-detail/rank-detail.vue')
+      },
+      {
+        path: 'new',
+        name: 'new',
+        component: () => import('../components/rank-detail/rank-detail.vue')
+      },
+      {
+        path: 'us',
+        name: 'us',
         component: () => import('../components/rank-detail/rank-detail.vue')
       }
     ]
@@ -40,16 +57,25 @@ const routes = [
     name: 'movie-detail',
     component: () => import('../components/movie-detail/movie-detail.vue'),
     children: [
-      {        path: 'reviews',        name: 'movie-detail-reviews',        component: MovieReview      },
       {
-        path:'discussType',
-        component:AllDiscussion
+        path: 'reviews',
+        name: 'movie-detail-reviews',
+        component: () => import('../components/movie-review/movie-review.vue')
+      },
+      {
+        path: 'discussType',
+        name: 'all-discussion',
+        component: () => import('../components/all-discussion/all-discussion.vue')
+      },
+      {
+        path: '',
+        name: 'movie-detail-default',
+        redirect: { name: 'movie-detail-reviews' }
       }
     ]
   }
 ]
 
-// 创建路由实例
 const router = createRouter({
   history: createWebHashHistory(),
   routes

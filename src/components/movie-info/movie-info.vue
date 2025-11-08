@@ -11,45 +11,72 @@
             <div class="rank">
                 <sapn class="origin">豆瓣评分</sapn>
                 <span class="rating" v-if="rating"></span>
-                <Star :score="MovieDetail.rating.average" :needNullStar="needNullStar" :size="24" />
+                <el-rate 
+                    v-model="ratingValue" 
+                    :max="10" 
+                    show-score 
+                    disabled 
+                    class="movie-rating"
+                />
                 <span class="num" v-if="rating">{{ MovieDetail.rating.count }}</span>
             </div>
         </div>
         <div class="operate">
-            <div class="want-watch" @click="saveWantedMovie" :class="{ 'wanted': iswanted(movieDetail.id) }"
-                v-text="wantedText"></div>
-            <div class="has-watched" @click="saveWantedMovie" :class="{ 'watched': hasWatched }">
-                <img src="./avatar.jpg" v-show="hasWatched" width="25" height="25" alt="">
+            <el-button 
+                :type="iswanted(movieDetail.id) ? 'primary' : 'default'" 
+                @click="saveWantedMovie" 
+                :icon="StarFilled"
+                class="want-watch-btn"
+            >
+                {{ wantedText }}
+            </el-button>
+            <el-button 
+                :type="hasWatched ? 'success' : 'default'" 
+                @click="saveWatchedMovie" 
+                class="has-watched-btn"
+                :icon="hasWatched ? Watch : Video"
+            >
                 {{ watchedText }}
-            </div>
+            </el-button>
         </div>
         <div class="summary">
             <h2 class="title">剧情简介</h2>
-            <p class="content">>&nbsp;&nbsp;&nbsp;&nbsp;{{ movieDetail.summary }}</p>
+            <p class="content">&gt;&nbsp;&nbsp;&nbsp;&nbsp;{{ movieDetail.summary || '暂无剧情简介' }}</p>
         </div>
-        <Scroll :class="casts" :scrollX="scrollX" :eventPassthrough="eventPassthrought" ref="scroll">
-            <div class="casts-content" ref="contentRef">
-                <h2 class="title">影人</h2>
-                <div class="cats-item" v-for="item in allCasts">
-                    <img v-lazy="replaceUrl(item.avatars.large)" width="90" height="120" alt="">
-                    <h3 class="item-title">{{ item.name }}</h3>
-                    <span v-if="item.isDirector">导演</span>
+        <div class="casts-section">
+            <h2 class="title">影人</h2>
+            <el-scrollbar class="casts-scroll">
+                <div class="casts-content" ref="contentRef">
+                    <div class="cats-item" v-for="item in allCasts" :key="item.id">
+                        <el-image 
+                            :src="replaceUrl(item.avatars?.large)" 
+                            :width="90" 
+                            :height="120"
+                            fit="cover"
+                            lazy
+                        >
+                            <template #error>
+                                <img src="https://picsum.photos/90/120" />
+                            </template>
+                        </el-image>
+                        <h3 class="item-title">{{ item.name }}</h3>
+                        <span v-if="item.isDirector" class="director-badge">导演</span>
+                    </div>
+                    <el-empty v-if="!allCasts.length" description="暂无影人信息" class="empty-state">
+                        <el-icon class="empty-icon"><User /></el-icon>
+                    </el-empty>
                 </div>
-                <div class="no-result" v-if="!allCasts.length">
-                    抱歉，暂无影人信息:(
-                </div>
-            </div>
-        </Scroll>
+            </el-scrollbar>
+        </div>
     </div>
 </template>
 
 
 <script setup name="movieInfo">
 import { computed, ref, onMounted } from 'vue'
-import Scroll from '../../base/scroll/scroll.vue';
-import Star from '../../base/star/star.vue';
-import MovieDetail from '../movie-detail/movie-detail.vue';
-
+import { useStore } from 'vuex'
+import { ElRate, ElScrollbar, ElImage, ElEmpty, ElButton, ElIcon } from 'element-plus'
+import { StarFilled, Watch, Video, User } from '@element-plus/icons-vue'
 
 // 定义props
 const props = defineProps({
@@ -60,24 +87,28 @@ const props = defineProps({
 })
 
 //创建响应式数据
-const scrollX = ref(true)
-const eventPassthrought = ref('vertical')
-const needNullStar = ref(true)
-const watched = ref('看过 ☆☆☆☆☆')
-const wantedText = ref('想看 ☆☆☆☆☆')
+const wantedText = ref('想看')
+const watchedText = ref('看过')
 const hasWatched = ref(false)
 
 // 创建ref引用
 const contentRef = ref(null)
-const scrollRef = ref(null)
 
-// h获取vuex store
+// 获取vuex store
 const store = useStore()
+
+// 电影详情数据的别名，避免重复写props.MovieDetail
+const movieDetail = computed(() => props.MovieDetail)
+
+// 评分值
+const ratingValue = computed(() => {
+    return props.MovieDetail.rating?.average || 0
+})
 
 //计算属性 用于处理复杂的数学逻辑
 // 评分是否显示(0分不显示)
 const rating = computed(() => {
-    let rating = pros.movieDetail.rating?.average || 0
+    let rating = props.MovieDetail.rating?.average || 0
     return rating !== 0
 })
 

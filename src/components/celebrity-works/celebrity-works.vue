@@ -2,22 +2,28 @@
   <div class="works-wrapper">
     <!-- 固定标题栏 -->
     <div class="fixed-title">
-      <span class="back" @click="back">
-        <i class="icon-back"></i>
-      </span>
+      <el-button 
+        class="back-btn" 
+        @click="back" 
+        icon="el-icon-arrow-left"
+        circle
+        size="small"
+      ></el-button>
       <span class="type">全部作品</span>
-      <span class="to-top" @click="toTop">
-        <i class="icon-circle-up"></i>
-      </span>
+      <el-button 
+        class="to-top-btn" 
+        @click="toTop" 
+        icon="el-icon-top"
+        circle
+        size="small"
+      ></el-button>
     </div>
     
     <!-- 滚动容器 -->
-    <scroll 
+    <el-scrollbar 
       class="celebrity-works" 
-      :data="works" 
-      :pullup="pullup" 
-      @scrollToEnd="loadMore" 
-      ref="scrollRef"
+      ref="scrollbarRef"
+      @scroll="handleScroll"
     >
       <div class="scroll-wrapper">
         <rank-list 
@@ -26,11 +32,16 @@
           @select="selectMovie" 
           :hasMore="hasMore"
         ></rank-list>
+        
+        <!-- 加载更多 -->
+        <div v-if="loadingFlag" class="loading-more">
+          <el-loading v-loading="loadingFlag" element-loading-text="加载中..."></el-loading>
+        </div>
       </div>
-    </scroll>
+    </el-scrollbar>
     
     <!-- 加载动画 -->
-    <loadmore :fullScreen="fullScreen" v-if="!works.length"></loadmore>
+    <el-loading v-if="!works.length" fullscreen text="加载中..."></el-loading>
   </div>
 </template>
 
@@ -39,9 +50,9 @@
 import { ref, computed, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
 import { useStore } from 'vuex';
-import Scroll from 'base/scroll/scroll';
+import { ElScrollbar, ElButton, ElLoading } from 'element-plus';
+import { ArrowLeft, Top } from '@element-plus/icons-vue';
 import RankList from 'components/rank-list/rank-list';
-import Loadmore from 'base/loadmore/loadmore';
 import { getCelebrityWorks } from '../../api/celebrity';
 import { createRankList } from '../../common/js/movieList';
 
@@ -52,13 +63,11 @@ const SEARCH_MORE = 20;
 const needRank = ref(false);
 const searchIndex = ref(0);
 const works = ref([]);
-const fullScreen = ref(true);
 const hasMore = ref(true);
-const pullup = ref(true);
 const loadingFlag = ref(true); // 控制滚动加载速度
 
 // 4. 创建引用
-const scrollRef = ref(null);
+const scrollbarRef = ref(null);
 
 // 5. 创建路由和store实例
 const router = useRouter();
@@ -76,8 +85,11 @@ const back = () => {
 
 // 返回顶部
 const toTop = () => {
-  if (scrollRef.value && scrollRef.value.scrollTo) {
-    scrollRef.value.scrollTo(0, 0, 200); // 滚动到顶部，带动画效果
+  if (scrollbarRef.value && scrollbarRef.value.wrapRef) {
+    scrollbarRef.value.wrapRef.scrollTo({
+      top: 0,
+      behavior: 'smooth'
+    });
   }
 };
 
@@ -87,6 +99,15 @@ const selectMovie = (movie) => {
   router.push({
     path: `/movie/${movie.id}`
   });
+};
+
+// 处理滚动事件
+const handleScroll = (event) => {
+  const { scrollTop, scrollHeight, clientHeight } = event.target;
+  // 当滚动到距离底部100px时触发加载更多
+  if (scrollHeight - scrollTop - clientHeight < 100) {
+    loadMore();
+  }
 };
 
 // 加载更多
@@ -128,7 +149,6 @@ const _getWorks = () => {
       });
       works.value = createRankList(ret);
       _checkMore(res);
-      // console.log(res);
     });
 };
 
@@ -150,8 +170,7 @@ onMounted(() => {
 .works-wrapper {
   height: 100%;
   position: relative;
-  z-index: 800;
-  background-color: #f5f5f5; 
+  background-color: #f5f5f5;
 }
 
 .works-wrapper .fixed-title {
@@ -160,64 +179,44 @@ onMounted(() => {
   width: 100%;
   height: 50px;
   z-index: 200;
-  background-color: #f5f5f5; 
+  background-color: #f5f5f5;
   text-align: center;
   position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.1);
 }
 
-.works-wrapper .fixed-title::after {
-  content: '';
+.works-wrapper .fixed-title .back-btn {
   position: absolute;
-  bottom: 0;
-  left: 0;
-  width: 100%;
-  height: 1px;
-  background-color: #e0e0e0; 
-  transform: scaleY(0.5);
-  transform-origin: 0 0;
-}
-
-.works-wrapper .fixed-title .back {
-  position: absolute;
-  top: 0px;
-  left: 6px;
-  z-index: 50;
-}
-
-.works-wrapper .fixed-title .back .icon-back {
-  display: block;
-  padding: 15px;
-  font-size: 18px; 
-  color: #ff4500; 
+  left: 10px;
+  color: #ff4500;
 }
 
 .works-wrapper .fixed-title .type {
-  line-height: 50px;
   font-size: 16px;
+  font-weight: 500;
 }
 
-.works-wrapper .fixed-title .to-top {
+.works-wrapper .fixed-title .to-top-btn {
   position: absolute;
-  top: 0;
-  right: 6px;
-  z-index: 50;
+  right: 10px;
+  color: #ff4500;
 }
 
-.works-wrapper .fixed-title .to-top .icon-circle-up {
-  display: block;
-  padding: 15px;
-  font-size: 20px; 
-  color: #ff4500; 
-}
 .works-wrapper .celebrity-works {
-  position: absolute;
-  top: 0;
-  bottom: 0;
-  width: 100%;
-  background-color: #f5f5f5; 
+  height: 100%;
+  padding-top: 50px;
 }
 
 .works-wrapper .celebrity-works .scroll-wrapper {
-  padding: 50px 0 30px 0;
+  padding-bottom: 30px;
+}
+
+.loading-more {
+  display: flex;
+  justify-content: center;
+  padding: 20px 0;
 }
 </style>

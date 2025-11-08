@@ -1,263 +1,319 @@
 <template>
-    <div class="rank-wrapper">
-        <!-- 顶部标题栏 -->
-        <div class="fixed-title">
-            <span class="back" @click="back">
-                <i class="icon-back">←</i>
-            </span>
-            <span class="type">{{ rankType }}</span>
-        </div>
-
-        <!-- Top250 分页切换 -->
-        <Switches v-if="isTop250" :switches="switches" :currentIndex="currentIndex" :smallFont="true"
-            @switch="switchTab" style="z-index: 200;" />
-        <!-- 调试信息 -->
-        <div style="color: red; text-align: center; font-size: 12px;">
-            isTop250: {{ isTop250 }}, rankType: {{ rankType }}
-        </div>
-
-        <Scroll :data="currentRankList" :pullup="true" :probeType="3" :listenScroll="true" @scrollToEnd="loadMore"
-            @scroll="handleScroll" class="rank-list-wrapper" ref="scrollRef">
-            <div class="rank-content" :class="{ 'more-padding': isTop250 }">
-                <RankList :rankItems="currentRankList" :hasMore="hasMore" @select="selectMovie" />
-            </div>
-            <LoadMore :fullScreen="true" v-if="!currentRankList.length" />
-        </Scroll>
+  <div class="rank-detail">
+    <!-- 页面标题 + 返回按钮 -->
+    <div class="header-bar">
+      <el-button type="text" @click="goBackToCards" class="back-btn">
+        <el-icon><ArrowLeft /></el-icon> Back
+      </el-button>
+      <h1 class="title">{{ rankTitle }}</h1>
     </div>
+
+    <!-- 分页导航 -->
+    <div class="pagination-nav" v-if="showPagination">
+      <el-button
+        v-for="(item, index) in paginationItems"
+        :key="index"
+        :type="currentPage === item.page ? 'primary' : 'default'"
+        @click="changePage(item.page)"
+        size="small"
+      >
+        {{ item.label }}
+      </el-button>
+    </div>
+
+    <!-- 电影列表 -->
+    <div class="movie-list">
+      <div
+        v-for="movie in movies"
+        :key="movie.id"
+        class="movie-item"
+        @click="goToMovie(movie.id)"
+      >
+        <div class="movie-poster">
+          <el-image
+            :src="replaceUrl(movie.images)"
+            :width="70"
+            :height="100"
+            fit="cover"
+            lazy
+          >
+            <template #error>
+              <div class="image-slot">
+                <el-icon><Film /></el-icon>
+              </div>
+            </template>
+          </el-image>
+        </div>
+        <div class="movie-info">
+          <h3 class="title">{{ movie.title }}</h3>
+          <!-- 安全访问 rating.average -->
+          <el-rate
+            :model-value="(movie.rating?.average || 0) / 2"
+            :disabled="true"
+            :show-score="true"
+            :max="5"
+            :score-template="`${movie.rating?.average || 0}`"
+            size="small"
+          />
+          <div class="director">
+            导演：{{ movie.directors?.[0]?.name || '未知' }}
+          </div>
+          <div class="actor">主演：{{ formatActors(movie.casts) }}</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 加载中 -->
+    <el-skeleton v-if="loading" :rows="5" animated class="loading-skeleton" />
+
+    <!-- 空状态 -->
+    <el-empty v-else-if="!movies.length" description="暂无数据" class="empty-state">
+      <el-button type="primary" @click="refresh">刷新</el-button>
+    </el-empty>
+  </div>
 </template>
 
-<script setup name="RankDetail">
-import { ref, onMounted, computed } from 'vue';
-import { useRoute, useRouter } from 'vue-router';
-import { useStore } from 'vuex';
-import { createRankList } from '../../common/js/movieList';
-import { top250Rank, weeklyRank, newMoviesRank, usRank } from '../../api/movie-rank';
-import Switches from '../../base/switches/switches.vue';
-import Scroll from '../../base/scroll/scroll.vue';
-import RankList from '../rank-list/rank-list.vue';
-import LoadMore from '../../base/loadmore/loadmore.vue';
+<script setup lang="ts">
+import { ref, onMounted } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
+import { useRankStore } from '@/store/modules/rank'
+import { ArrowLeft, Film } from '@element-plus/icons-vue'
+// 导入您的 API 文件
+import * as movieRankAPI from '@/api/movie-rank'
 
-// 路由和状态
-const route = useRoute();
-const router = useRouter();
-const store = useStore();
+// 定义分页项的类型
+interface PaginationItem {
+  label: string;
+  page: number;
+}
 
-// 基础数据
-const rankType = ref('豆瓣 Top250');
-const dataFn = ref(top250Rank);
-const isTop250 = ref(true);
+const route = useRoute()
+const router = useRouter()
+const rankStore = useRankStore()
 
-// 分页数据（仅Top250使用）
-const currentIndex = ref(0);
-const switches = ref([
-    { name: '1-50' },
-    { name: '51-100' },
-    { name: '101-150' },
-    { name: '151-200' },
-    { name: '201-250' }
-]);
+const loading = ref(false)
+const movies = ref<any[]>([])
+const rankTitle = ref('')
+const currentPage = ref(1)
+const showPagination = ref(false)
+const paginationItems = ref<PaginationItem[]>([]) // 明确指定类型
 
-// 列表数据
-const rankLists = ref([]); // 存储所有分页的数据
-const hasMore = ref(true);
-const isLoading = ref(false);
-// const start = ref(0);
+// 根据路径确定榜单类型和对应的 API 函数
+const apiMap = {
+  top250: movieRankAPI.top250Rank,
+  weekly: movieRankAPI.weeklyRank,
+  new: movieRankAPI.newMoviesRank,
+  us: movieRankAPI.usRank,
+}
 
-
-// 滚动引用
-const scrollRef = ref(null);
-
-// 当前显示的列表
-const currentRankList = computed(() => {
-    return isTop250.value ? rankLists.value[currentIndex.value] || [] : rankLists.value[0] || [];
-});
-
-// 方法
-const back = () => router.back('/rank');
-
-const handleScroll = (pos) => {
-    if (pos > 0) {
-        store.commit('SET_SCROLL_POSITION', pos);
-    }
-    // 滚动到上次保存的位置
-    if (pos === 0) {
-        pos = store.state.scrollPosition || 0;
-    }
-    // 滚动到指定位置
-    if (scrollRef.value) {
-        scrollRef.value.scrollTo(0, pos, 300);
-    }
-    // 保存当前滚动位置
-    store.commit('SET_SCROLL_POSITION', pos);
-
-};
-
-const switchTab = (index) => {
-    currentIndex.value = index;
-
-    // 如果当前分页没有数据，加载数据
-    if (!rankLists.value[index]) {
-        // index为点击的索引 如果是0-50 则从0开始加载 如果index=1 则51-100以此类推
-        loadRankData(index * 50, 50, index);
-    }
-
-    // 刷新滚动组件
-    nextTick(() => {
-        if (scrollRef.value) {
-            scrollRef.value.refresh();
-        }
-    });
-};
-
-const selectMovie = (movie) => {
-    router.push(`/movie/${movie.id}`);
-    store.commit('SET_MOVIE', movie);
-};
-
-const loadMore = async () => {
-    //正在加载或者不需要更多数据时
-    if (isLoading.value || !hasMore.value) return;
-    isLoading.value = true;
-
-    const startIndex = isTop250.value ?
-    //当前页面是从index50并且+已经加载的数据
-        currentIndex.value * 50 + currentRankList.value.length :
-        //
-        rankLists.value[0]?.length || 0;
-
-    try {
-        await loadRankData(startIndex, 10, currentIndex.value);
-    } finally {
-        isLoading.value = false;
-    }
-};
-
-const loadRankData = async (start, count, index) => {
-    const res = await dataFn.value(start, count);
-    const newMovies = createRankList(res.subjects);
-
-    if (!rankLists.value[index]) {
-        rankLists.value[index] = [];
-    }
-
-    if (start === 0 || !isTop250.value) {
-        rankLists.value[index] = newMovies;
-    } else {
-        rankLists.value[index] = [...rankLists.value[index], ...newMovies];
-    }
-
-    // 检查是否还有更多数据
-    hasMore.value = res.subjects.length === count &&
-        res.start + res.count < (isTop250.value ? 50 : 100); // 根据榜单类型设置上限
-};
-
-const selectType = () => {
-    const type = route.params.rankType;
-    const typeConfig = {
-        'top250': { fn: top250Rank, name: '豆瓣 Top250', isTop250: true },
-        'weekly': { fn: weeklyRank, name: '本周口碑榜', isTop250: false },
-        'new': { fn: newMoviesRank, name: '新片榜', isTop250: false },
-        'us': { fn: usRank, name: '北美票房榜', isTop250: false }
-    };
-
-    const config = typeConfig[type];
-    if (config) {
-        dataFn.value = config.fn;
-        rankType.value = config.name;
-        isTop250.value = config.isTop250;
-    }
-};
-
-const getRankList = async () => {
-    await loadRankData(0, isTop250.value ? 50 : 100, currentIndex.value);
-};
-
+// 根据路径确定榜单类型
 onMounted(() => {
-    selectType();
-    getRankList();
-});
+  const path = route.path
+  if (path.includes('top250')) {
+    rankTitle.value = '豆瓣 Top250'
+    showPagination.value = true
+    paginationItems.value = [
+      { label: '1-50', page: 1 },
+      { label: '51-100', page: 2 },
+      { label: '101-150', page: 3 },
+      { label: '151-200', page: 4 },
+      { label: '201-250', page: 5 }
+    ]
+  } else if (path.includes('weekly')) {
+    rankTitle.value = '本周口碑榜'
+  } else if (path.includes('new')) {
+    rankTitle.value = '新片榜'
+  } else if (path.includes('us')) {
+    rankTitle.value = '北美票房榜'
+  }
+
+  loadData()
+})
+
+// 加载数据
+const loadData = async () => {
+  loading.value = true
+  const path = route.path
+  const type = path.split('/').pop()
+
+  try {
+    const apiFunction = type ? apiMap[type as keyof typeof apiMap] : undefined
+    if (apiFunction) {
+      // 调用 API
+      const start = showPagination ? (currentPage.value - 1) * 50 : 0
+      const count = showPagination ? 50 : undefined
+      const data = await apiFunction(start, count)
+      movies.value = data.subjects // 注意：模拟数据结构是 { subjects: [...] }
+    } else {
+      console.error(`Unknown rank type: ${type}`)
+      movies.value = []
+    }
+  } catch (error) {
+    console.error('加载排行榜数据失败:', error)
+    movies.value = []
+  } finally {
+    loading.value = false
+  }
+}
+
+// 切换页面
+const changePage = (page: number) => {
+  currentPage.value = page
+  loadData()
+}
+
+// 格式化主演信息
+const formatActors = (casts: any[]): string => {
+  if (!casts || !Array.isArray(casts) || casts.length === 0) {
+    return '未知'
+  }
+  return casts.slice(0, 2).map(actor => actor.name).join(' / ')
+}
+
+// 图片URL处理（防盗链）- 修复空格问题
+const replaceUrl = (srcUrlObj: any): string => {
+  if (!srcUrlObj || typeof srcUrlObj !== 'object' || !srcUrlObj.large) {
+    return ''
+  }
+  const originalUrl = srcUrlObj.large.replace(/^https?:\/\//, '').trim()
+  return `https://images.weserv.nl/?url=${originalUrl}`
+}
+
+// 跳转到电影详情
+const goToMovie = (id: string) => {
+  if (!id) {
+    console.error('电影ID为空，无法跳转')
+    return
+  }
+  router.push(`/movie-detail/${id}`)
+}
+
+// 刷新数据
+const refresh = () => {
+    loadData()
+}
+
+// 返回到卡片视图 - 更新 Vuex 状态
+const goBackToCards = () => {
+  rankStore.updateShowCards(true)
+}
 </script>
 
 <style scoped>
-.rank-wrapper {
-    position: relative;
-    z-index: 10;
+/* 保持原有样式不变 */
+.rank-detail {
+  padding: 20px;
+  background-color: #f5f5f5;
+  min-height: 100vh;
 }
 
-.fixed-title {
-    position: fixed;
-    top: 0;
-    width: 100%;
-    height: 50px;
-    z-index: 200;
+.header-bar {
+  display: flex;
+  align-items: center;
+  margin-bottom: 20px;
+  padding: 10px 0;
+  background-color: #fff;
+  border-radius: 4px;
+}
+
+.back-btn {
+  margin-right: 10px;
+  font-size: 14px;
+}
+
+.title {
+  font-size: 18px;
+  color: #333;
+  margin: 0;
+}
+
+.pagination-nav {
+  display: flex;
+  justify-content: center;
+  gap: 10px;
+  margin-bottom: 20px;
+}
+
+.movie-list {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+}
+
+.movie-item {
+  display: flex;
+  align-items: center;
+  padding: 15px;
+  border: 1px solid #eee;
+  border-radius: 8px;
+  background-color: #fff;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.movie-item:hover {
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  transform: translateY(-1px);
+}
+
+.movie-poster {
+  flex: 0 0 70px;
+  margin-right: 15px;
+  border-radius: 4px;
+  overflow: hidden;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.movie-info {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-around;
+  overflow: hidden;
+}
+
+.movie-info .title {
+  font-size: 16px;
+  color: #333;
+  margin: 0;
+  font-weight: 500;
+  line-height: 1.4;
+}
+
+.movie-info .director {
+  font-size: 14px;
+  color: #666;
+  line-height: 1.4;
+}
+
+.movie-info .actor {
+  font-size: 14px;
+  color: #666;
+  line-height: 1.4;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.loading-skeleton {
+    margin-top: 20px;
+    padding: 20px;
+    border-radius: 8px;
     background-color: #fff;
-    border-bottom: 1px solid #e0e0e0;
 }
 
-.back {
-    position: absolute;
-    top: 0px;
-    left: 6px;
-    z-index: 50;
-    cursor: pointer;
+.empty-state {
+    margin-top: 50px;
+    padding: 50px 0;
 }
 
-.icon-back {
-    display: block;
-    padding: 15px;
-    font-size: 16px;
-    color: #ff4d4d;
+/* 调整评分组件样式 */
+:deep(.el-rate__text) {
+  color: #ff4d4d !important;
+  font-size: 12px;
 }
 
-.type {
-    line-height: 50px;
-    font-size: 16px;
-    padding-left: 60px;
-    color: #333;
-}
-
-/* 修复Switches组件的样式 */
-.switches {
-    position: fixed;
-    top: 50px;
-    width: 100%;
-    height: auto;
-    z-index: 200;
-    background-color: #fff;
-    margin: 0;
-    padding: 0;
-}
-
-/* 确保switches-item的样式正确 */
-.switches-item {
-    list-style: none !important;
-    margin: 0 !important;
-    padding: 0 !important;
-}
-
-/* 修复滚动容器的样式 */
-.rank-list-wrapper {
-    position: fixed;
-    top: 0;
-    bottom: 0;
-    left: 0;
-    right: 0;
-    background: #fff;
-    z-index: 100;
-}
-
-.rank-content {
-    padding: 50px 15px 40px 15px;
-}
-
-.rank-content.more-padding {
-    padding-top: 90px;
-}
-
-/* 确保ul和li没有默认样式 */
-.switches ul, .switches li {
-    list-style: none !important;
-    margin: 0 !important;
-    padding: 0 !important;
+:deep(.el-rate__icon--full) {
+  color: #ff4d4d !important;
 }
 </style>

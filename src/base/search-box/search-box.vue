@@ -1,7 +1,7 @@
 <template>
     <div class="search-box">
         <div class="search-input-container">
-            <el-icon class="search-icon"><Search /></el-icon>
+           <el-icon class="search-icon"><Search /></el-icon>
             <input @keyup.enter="handleSearch" type="text" class="box" :placeholder="placeholder" v-model="query" ref="inputRef">
         </div>
         <span class="cancel" @click="back">取消</span>

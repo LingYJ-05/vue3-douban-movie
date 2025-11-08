@@ -3,8 +3,8 @@ import vue from '@vitejs/plugin-vue'
 import AutoImport from 'unplugin-auto-import/vite'
 import Components from 'unplugin-vue-components/vite'
 import { ElementPlusResolver } from 'unplugin-vue-components/resolvers'
+import path from 'path' // 
 
-// https://vitejs.dev/config/
 export default defineConfig({
   plugins: [
     vue(),
@@ -32,11 +32,8 @@ export default defineConfig({
     rollupOptions: {
       output: {
         manualChunks: {
-          // 将Vue相关库打包到一个chunk
           vue: ['vue', 'vue-router', 'vuex'],
-          // 将其他第三方库打包到一个chunk
           vendor: ['axios'],
-          // 可以根据组件大小和使用频率进一步分割
           'movie-components': [
             './src/components/movie-detail/movie-detail.vue',
             './src/components/movie-show/movie-show.vue'
@@ -44,5 +41,11 @@ export default defineConfig({
         }
       }
     }
-  }
+  },
+  // 👇 新增：配置别名
+  resolve: {
+    alias: {
+      '@': path.resolve(__dirname, 'src'), 
+    },
+  },
 })

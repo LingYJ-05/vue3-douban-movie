@@ -1,4 +1,3 @@
-```vue
 <template>
   <div class="movie-show">
     <!-- 搜索框 -->
@@ -7,51 +6,51 @@
         <img src="./douban-logo.png" width="35" height="35" alt="豆瓣logo" @error="handleError">
       </div>
       <div class="search-content">
-       <el-icon class="search-icon"><Search /></el-icon>
+        <el-icon class="search-icon">
+          <Search />
+        </el-icon>
         <span>电影/影人/标签</span>
       </div>
     </div>
 
-    <!-- 标签切换 -->
-    <Switches :items="switches" :currentIndex="currentIndex" @switch="switchItem"></Switches>
-    
+    <!-- 标签切换 - 使用 Element Plus Tabs，平均分布 -->
+    <el-tabs v-model="currentIndex" type="card" @tab-change="switchItem" class="movie-tabs">
+      <el-tab-pane label="正在热映" name="0"></el-tab-pane>
+      <el-tab-pane label="即将上映" name="1"></el-tab-pane>
+    </el-tabs>
+
     <!-- 内容列表 -->
     <div class="list-wrapper">
+      <!-- 错误提示 -->
+      <el-empty v-if="error && !loading" description="加载失败，请重试">
+        <template #bottom>
+          <el-button type="primary" @click="retryLoad">重试</el-button>
+        </template>
+      </el-empty>
+
       <!-- 热映电影 -->
-      <Scroll v-show="currentIndex === 0" class="list-scroll" 
-              :data="moviesData.hot" v-bind="scrollProps" 
-              @scroll="scroll" @pullingUp="loadMoreData" ref="scrollComponent">
-        <div class="list-inner">
-          <movie-list :movies="moviesData.hot" :needDate="false" 
-                      @getHeight="getHeight" @getMap="getMap"
-                      :hasMore="hasMoreMovies.hot" 
-                      @select="selectMovie" ref="list"></movie-list>
+      <div v-else-if="currentIndex === '0'" class="list-container">
+        <div v-infinite-scroll="loadMoreData" :infinite-scroll-disabled="loading || !hasMoreMovies.hot"
+          :infinite-scroll-distance="50" class="list-inner">
+          <movie-list :movies="moviesData.hot" :needDate="false" @select="selectMovie"></movie-list>
+          <!-- 加载中 -->
+          <el-skeleton v-if="loading" :rows="3" animated class="loading-skeleton"></el-skeleton>
         </div>
-      </Scroll>
+      </div>
 
       <!-- 即将上映 -->
-      <Scroll v-show="currentIndex === 1" class="list-scroll" 
-              :data="moviesData.coming" v-bind="scrollProps" 
-              @scroll="scroll" @pullingUp="loadMoreData" ref="scrollComponent">
-        <div class="list-inner">
-          <movie-list :movies="moviesData.coming" :needDate="true" 
-                      @getHeight="getHeight" @getMap="getMap"
-                      :hasMore="hasMoreMovies.coming" 
-                      @select="selectMovie" ref="list"></movie-list>
+      <div v-else-if="currentIndex === '1'" class="list-container">
+        <div v-infinite-scroll="loadMoreData" :infinite-scroll-disabled="loading || !hasMoreMovies.coming"
+          :infinite-scroll-distance="50" class="list-inner">
+          <movie-list :movies="moviesData.coming" :needDate="true" @select="selectMovie"></movie-list>
+          <!-- 加载中 -->
+          <el-skeleton v-if="loading" :rows="3" animated class="loading-skeleton"></el-skeleton>
         </div>
-      </Scroll>
-      
-      <!-- 加载更多 -->
-      <LoadMore :fullScreen="fullScreen" :hasMore="loading" v-show="loading"></LoadMore>
-
-      <!-- 错误提示 -->
-      <div class="error-tip" v-show="error && !loading">
-        <p>{{ error }}</p>
-        <button @click="retryLoad" class="retry-btn">重试</button>
       </div>
     </div>
-    
-    <div class="list-fixed" v-show="currentIndex === 1" v-if="fixedTitle" ref="fixed">
+
+    <!-- 即将上映时的固定标题 -->
+    <div v-if="currentIndex === '1' && fixedTitle" class="fixed-title-bar">
       <h1 class="fixed-title">{{ fixedTitle }}</h1>
     </div>
   </div>
@@ -59,19 +58,10 @@
 
 <script setup>
 import { Search } from '@element-plus/icons-vue'
-import Switches from '../../base/switches/switches.vue'
-import LoadMore from '../../base/loadmore/loadmore.vue'
 import movieList from '../../components/movie-list/movie-list.vue'
-import Scroll from '../../base/scroll/scroll.vue'
-import { ref, reactive, watch, nextTick } from 'vue'
+import { ref, reactive, watch } from 'vue'
 import router from '../../router'
 import { getMovie, getComingSoon } from '../../api/movie-show.js'
-
-// 数据结构优化
-const switches = ref([
-  { name: '正在热映' },
-  { name: '即将上映' }
-])
 
 // 集中管理所有电影数据
 const moviesData = reactive({
@@ -86,133 +76,26 @@ const hasMoreMovies = reactive({
 })
 
 // 滚动相关状态
-const fullScreen = ref(false)
 const loading = ref(false)
 const error = ref('')
-const currentIndex = ref(0)
+const currentIndex = ref('0') // 使用字符串类型与Element Plus的tabs组件兼容
 const fixedTitle = ref('')
-// const needDate = ref(true)
-
-// 滚动组件配置
-const scrollProps = {
-  pullup: true,
-  probeType: 3,
-  listenScroll: true
-}
-
-// 保存滚动组件引用
-const scrollComponent = ref(null)
-
-// 滚动相关状态
-const scorllY = ref(-1)           // 当前滚动位置
-const scrollIndex = ref(0)        // 当前滚动到的索引
-const listHeight = ref([])        // 每个分组的高度数组
-const fixedTop = ref(0)           // 固定标题的偏移量
-const scorllMap = ref(null)       // 滚动映射数据
-const refs = ref({})              // DOM引用
 
 // 电影加载配置
 const CONFIG = {
-  SEARCH_MORE: 10,
-  TITLE_HEIGHT: 30
+  SEARCH_MORE: 10
 }
 
 // API映射 - 用对象统一管理
 const apiMap = {
-  0: (start, count) => getMovie(start, count),  // 热映
-  1: (start, count) => getComingSoon(start, count)  // 即将上映
+  '0': (start, count) => getMovie(start, count),  // 热映
+  '1': (start, count) => getComingSoon(start, count)  // 即将上映
 }
 
 // 索引管理
 const indexMap = reactive({
   hot: 0,
   coming: 0
-})
-
-// 滚动相关方法
-// 保存滚动组件传入的高度
-const getHeight = (height) => {
-  listHeight.value = height
-}
-
-// 保存子组件传入的日期映射
-const getMap = (map) => {
-  scorllMap.value = map
-}
-
-// 滚动事件处理
-const scroll = (e) => {
-  scorllY.value = e.detail.y
-}
-
-// 监听滚动位置变化，计算当前索引和固定标题
-watch(scorllY, (newY) => {
-  if (!newY) { // 如果在快速滚动时切换tab栏，滚动位置会读取错误，这里保留出错前正确的滚动位置
-    return
-  }
-  if (!listHeight.value || !scorllMap.value) {
-    return
-  }
-  
-  if (newY > 0) {
-    scrollIndex.value = 0
-    return
-  }
-  
-  // 在中间部分滚动
-  if (Array.isArray(listHeight.value) && listHeight.value.length > 1) {
-    for (let i = 0; i < listHeight.value.length - 1; i++) {
-      let height1 = listHeight.value[i] // 上一个元素的高度
-      let height2 = listHeight.value[i + 1] // 下一个元素的高度
-      if (-newY >= height1 && -newY < height2) {
-        scrollIndex.value = i
-        
-        // 更新固定标题
-        updateFixedTitle(i)
-        return
-      }
-    }
-    // 滚动到底部 且newY大于最后一个元素的上限
-    scrollIndex.value = listHeight.value.length - 2
-    
-    // 更新固定标题
-    updateFixedTitle(listHeight.value.length - 2)
-  }
-})
-
-// 更新固定标题
-const updateFixedTitle = (index) => {
-  if (scorllMap.value && currentIndex.value === 1) {
-    const keys = Object.keys(scorllMap.value)
-    if (keys.length > 0 && index < keys.length) {
-      fixedTitle.value = keys[index]
-    }
-  }
-}
-
-// 计算固定标题的位置（吸顶效果）
-const diff = (newval) => {
-  let tempFixedTop = (newval > 0 && newval < CONFIG.TITLE_HEIGHT) ? 
-    newval - CONFIG.TITLE_HEIGHT : 0
-  
-  if (fixedTop.value === tempFixedTop) {
-    return
-  }
-  
-  fixedTop.value = tempFixedTop
-  nextTick(() => {
-    if (refs.value.fixed) {
-      refs.value.fixed.style.transform = `translate3d(0, ${tempFixedTop}px, 0)`
-    }
-  })
-}
-
-// 监听scrollIndex变化，计算固定标题位置
-watch(scrollIndex, (newIndex) => {
-  if (currentIndex.value === 1 && listHeight.value.length > 0) {
-    const newY = -listHeight.value[newIndex]
-    diff(newY)
-  }
 })
 
 // 统一的加载方法
@@ -222,85 +105,66 @@ const loadMovies = async (tabIndex, isLoadMore = false) => {
     error.value = ''
 
     // 计算起始位置
-    const start = isLoadMore ? 
-      (tabIndex === 0 ? indexMap.hot : moviesData.coming.length) : 0
-    
+    const start = isLoadMore ?
+      (tabIndex === '0' ? indexMap.hot : moviesData.coming.length) : 0
+
     // 获取数据
     const res = await apiMap[tabIndex](start, CONFIG.SEARCH_MORE)
-    
+
     // 更新数据
-    const key = tabIndex === 0 ? 'hot' : 'coming'
+    const key = tabIndex === '0' ? 'hot' : 'coming'
     if (isLoadMore) {
       moviesData[key] = [...moviesData[key], ...res.subjects || []]
     } else {
       moviesData[key] = res.subjects || []
     }
-    
+
     // 更新索引
-    if (tabIndex === 0 && isLoadMore) {
+    if (tabIndex === '0' && isLoadMore) {
       indexMap.hot += CONFIG.SEARCH_MORE
     }
-    
+
     // 检查是否还有更多数据
     checkHasMore(res, key)
-    
+
   } catch (err) {
     console.error('加载电影失败:', err)
     error.value = '加载失败，请重试'
-    // 可以在这里设置模拟数据
   } finally {
     loading.value = false
-    finishPullUp()
   }
 }
 
 // 检查是否还有更多数据
 const checkHasMore = (res, key) => {
   const movies = res?.subjects || []
-  if (!res || movies.length === 0 || 
-      (res.start !== undefined && res.count !== undefined && 
-       res.total !== undefined && (res.start + res.count) >= res.total)) {
+  if (!res || movies.length === 0 ||
+    (res.start !== undefined && res.count !== undefined &&
+      res.total !== undefined && (res.start + res.count) >= res.total)) {
     hasMoreMovies[key] = false
-  }
-}
-
-// 完成上拉加载
-const finishPullUp = () => {
-  if (scrollComponent.value?.scroll) {
-    scrollComponent.value.scroll.finishPullUp()
   }
 }
 
 // 切换标签
 const switchItem = (index) => {
   currentIndex.value = index
-  
-  // 切换标签时重置滚动相关状态
-  scorllY.value = -1
-  scrollIndex.value = 0
+
+  // 切换标签时重置固定标题
   fixedTitle.value = ''
-  
-  loadMovies(index) // 加载对应数据
-  refreshScroll()
+
+  // 如果切换到一个新的标签页且该标签页没有数据，则加载数据
+  const key = index === '0' ? 'hot' : 'coming'
+  if (moviesData[key].length === 0) {
+    loadMovies(index) // 加载对应数据
+  }
 }
 
 // 加载更多数据
-// 判断目前是加载热映还是加载即将上映的电影
-const loadingListType= currentIndex.value===0?'hot':'coming'
 const loadMoreData = () => {
-  if (loading.value || !hasMoreMovies[loadingListType]) {
+  if (loading.value || !hasMoreMovies[currentIndex.value === '0' ? 'hot' : 'coming']) {
     return
   }
   loadMovies(currentIndex.value, true)
-}
-
-// 刷新滚动组件
-const refreshScroll = () => {
-  if (scrollComponent.value) {
-    setTimeout(() => {
-      scrollComponent.value.refresh()
-    }, 20)
-  }
 }
 
 // 重试加载
@@ -325,91 +189,151 @@ const selectMovie = (movie) => {
 }
 
 // 组件初始化
-loadMovies(0) // 默认加载热映电影
+loadMovies('0') // 默认加载热映电影
 </script>
+
 <style scoped>
 .movie-show {
   height: 100%;
+  padding-bottom: 60px;
+  background-color: #f5f5f5;
 }
 
-.movie-show .go-search {
+/* 搜索框样式 */
+.go-search {
   height: 50px;
   box-sizing: border-box;
   padding: 10px 10px 5px 60px;
   text-align: center;
+  position: relative;
+  background-color: #fff;
+  border-bottom: 1px solid #eee;
 }
 
-.movie-show .go-search .logo {
+.logo {
   position: absolute;
   left: 10px;
+  top: 10px;
 }
 
-.movie-show .go-search .search-content {
+.search-content {
   background-color: #f5f5f5;
-  font-size: 16px;
+  font-size: 14px;
   line-height: 35px;
-  border-radius: 5px;
+  border-radius: 17.5px;
+  padding: 0 20px;
+  color: #999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
-.movie-show .go-search .search-content span {
+.search-content span {
   display: inline-block;
   vertical-align: middle;
-  margin-bottom: 5px;
+  margin-left: 5px;
 }
 
-.movie-show .list-wrapper {
-  position: absolute;
-  top: 97px;
-  bottom: 61px;
+/* Element Plus Tabs 组件样式 - 平均分布 */
+.movie-tabs {
+  padding: 0 15px;
+  margin-bottom: 10px;
+  background-color: #fff;
+}
+
+.movie-tabs .el-tabs__header {
+  margin-bottom: 0;
+  border-bottom: none;
+}
+
+.movie-tabs .el-tabs__nav-wrap {
+  padding: 0;
+}
+
+.movie-tabs .el-tabs__nav {
+  width: 100%;
+  display: flex;
+}
+
+.movie-tabs .el-tabs__item {
+  flex: 1;
+  /* ✅ 关键：平均分布 */
+  text-align: center;
+  font-size: 14px;
+  color: #666;
+  height: 40px;
+  line-height: 40px;
+  padding: 0;
+  margin: 0;
+  border: none;
+  border-radius: 20px;
+  background-color: #f5f5f5;
+  margin: 0 5px;
+  transition: all 0.3s ease;
+  font-weight: 500;
+}
+
+.movie-tabs .el-tabs__item.is-active {
+  color: #fff;
+  background-color: #409EFF;
+  transform: scale(1.05);
+}
+
+.movie-tabs .el-tabs__item:not(.is-active):hover {
+  background-color: #e6f7ff;
+}
+
+.movie-tabs .el-tabs__active-bar {
+  display: none;
+  /* 隐藏默认的下划线 */
+}
+
+/* 列表容器样式 */
+.list-wrapper {
+  padding: 0 15px;
+  min-height: calc(100vh - 150px);
+}
+
+.list-container {
   width: 100%;
 }
 
-.movie-show .list-wrapper .list-scroll {
-  position: relative;
-  height: 100%;
-  overflow: hidden;
-}
-
-.movie-show .list-wrapper .list-scroll .list-inner {
-  padding: 0px 15px;
-}
-
-.movie-show .list-fixed {
-  position: absolute;
-  top: 97px;
-  right: 15px;
-  left: 15px;
-}
-
-.movie-show .list-fixed .fixed-title {
+.list-inner {
   width: 100%;
-  padding-left: 5px;
+  padding-bottom: 20px;
+}
+
+/* 加载骨架屏样式 */
+.loading-skeleton {
+  margin-top: 10px;
+  padding: 10px;
+  border-radius: 8px;
+  background-color: #fff;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+}
+
+/* 固定标题栏 */
+.fixed-title-bar {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  background-color: #fff;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+  padding: 0 15px;
+  border-top: 1px solid #eee;
+}
+
+.fixed-title {
+  width: 100%;
   height: 30px;
   line-height: 30px;
-  background-color: #f5f5f5;
-  /* $color-background-d */
-}
-
-/* 错误提示样式 */
-.error-tip {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
+  font-size: 14px;
+  font-weight: 500;
+  margin: 0;
+  padding: 0;
+  color: #333;
+  background-color: #f9f9f9;
+  border-radius: 4px;
   text-align: center;
-  color: #999;
-}
-
-.error-tip p {
-  margin-bottom: 10px;
-}
-
-.error-tip .retry-btn {
-  background-color: #00a0e9;
-  color: white;
-  border: none;
-  border-radius: 3px;
-  padding: 5px 15px;
-  cursor: pointer;
 }
 </style>

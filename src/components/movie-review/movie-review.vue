@@ -6,44 +6,80 @@
         </div>
 
         <!-- 影评列表 -->
-        <ul>
-            <li v-for="review in reviews" :key="review.id" class="review-item" @click="selectReview(review.id)">
-                <div class="content">
-                    <!-- 影评标题 -->
-                    <h1 class="title">{{ review.title }}</h1>
-
-                    <!-- 用户信息区域 -->
-                    <div class="user-info">
-                        <div class="avatar">
-                            <!-- 懒加载头像图片 -->
-                            <img v-lazy="review.author.avatar" alt="" width="25" height="25">
-                        </div>
-                        <!-- 用户名 -->
-                        <span class="name">{{ review.author.name }}</span>
-                        <!-- 星级评分组件 -->
-                        <Star :size="24" :score="review.rating.value * 2" />
+        <div v-if="reviews.length">
+            <el-card 
+                v-for="review in reviews" 
+                :key="review.id" 
+                class="review-item" 
+                @click="selectReview(review.id)"
+                shadow="hover"
+            >
+                <!-- 影评标题 -->
+                <template #header>
+                    <div class="card-header">
+                        <h1 class="title">{{ review.title }}</h1>
                     </div>
+                </template>
 
-                    <!-- 影评摘要 -->
-                    <p class="desc">{{ review.summary }}</p>
+                <!-- 用户信息区域 -->
+                <div class="user-info">
+                    <el-image 
+                        :src="review.author.avatar" 
+                        alt="" 
+                        class="avatar" 
+                        :lazy="true"
+                        fit="cover"
+                    ></el-image>
+                    <!-- 用户名 -->
+                    <span class="name">{{ review.author.name }}</span>
+                    <!-- 星级评分组件 -->
+                    <el-rate 
+                        v-model="review.rating.value" 
+                        :max="5" 
+                        allow-half 
+                        readonly 
+                        size="small"
+                    />
                 </div>
-            </li>
-        </ul>
 
-        <!-- 全部影评按钮（当不需要标题时显示） -->
-        <div v-if="!needTitle" class="allReview" @click="needAllReviews">
-            <span>全部影评{{ reviewNum }}个</span>
+                <!-- 影评摘要 -->
+                <p class="desc">{{ review.summary }}</p>
+            </el-card>
         </div>
 
-        <!-- 加载更多组件（当需要标题且有数据时显示） -->
-        <Loadmore :hasMore="hasMore" v-if="needTitle" v-show="reviews.length" />
+        <!-- 空状态 -->
+        <el-empty v-else description="暂无影评数据"></el-empty>
+
+        <!-- 全部影评按钮（当不需要标题时显示） -->
+        <el-button 
+            v-if="!needTitle" 
+            class="all-review-btn" 
+            @click="needAllReviews"
+            type="text"
+            size="default"
+        >
+            全部影评{{ reviewNum }}个
+        </el-button>
+
+        <!-- 加载更多（当需要标题且有数据时显示） -->
+        <div v-if="needTitle && reviews.length" class="load-more">
+            <el-button 
+                v-if="hasMore" 
+                loading 
+                plain
+                size="small"
+                :disabled="true"
+            >
+                加载中...
+            </el-button>
+            <span v-else class="no-more">没有更多数据了</span>
+        </div>
     </div>
 </template>
 
 <script setup>
-// 导入组件
-import Star from '../../base/star/star.vue';
-import Loadmore from '../../base/loadmore/loadmore.vue';
+// 导入Element Plus组件
+import { ElCard, ElImage, ElRate, ElEmpty, ElButton } from 'element-plus';
 
 // 定义组件名称
 defineOptions({
@@ -99,54 +135,79 @@ const needAllReviews = () => {
 .movie-review .type-title {
     font-size: 16px;
     margin-bottom: 15px;
+    font-weight: 500;
 }
 
 .movie-review .review-item {
     margin-bottom: 20px;
+    cursor: pointer;
+    transition: all 0.3s ease;
 }
 
-.movie-review .review-item .content {
+.movie-review .review-item:hover {
+    transform: translateY(-2px);
+}
+
+.movie-review .review-item .card-header {
+    padding: 0;
+}
+
+.movie-review .review-item .title {
+    font-size: 18px;
+    color: #333;
+    margin: 0;
+    font-weight: 500;
+}
+
+.movie-review .review-item .user-info {
+    padding: 10px 0;
+    display: flex;
+    align-items: center;
+}
+
+.movie-review .review-item .user-info .avatar {
+    width: 25px;
+    height: 25px;
+    border-radius: 50%;
+    margin-right: 10px;
+}
+
+.movie-review .review-item .user-info .name {
+    margin-right: 15px;
+    color: #606266;
+}
+
+.movie-review .review-item .user-info .el-rate {
+    margin-left: auto;
+}
+
+.movie-review .review-item .desc {
+    line-height: 1.6;
+    color: #606266;
+    margin: 0;
     font-size: 14px;
 }
 
-.movie-review .review-item .content .title {
-    font-size: 18px;
-    color: #333;
-    padding: 5px 0;
-}
-
-.movie-review .review-item .content .user-info {
-    padding: 5px 0;
-}
-
-.movie-review .review-item .content .user-info .avatar {
-    display: inline-block;
-    vertical-align: middle;
-    margin-right: 6px;
-}
-
-.movie-review .review-item .content .user-info .avatar img {
-    border-radius: 50%;
-}
-
-.movie-review .review-item .content .user-info .name {
-    display: inline-block;
-    vertical-align: middle;
-}
-
-.movie-review .review-item .content .user-info .star {
-    display: inline-block;
-    vertical-align: middle;
-}
-
-.movie-review .review-item .content .desc {
-    line-height: 20px;
-}
-
-.movie-review .allReview {
-    font-size: 16px;
+.movie-review .all-review-btn {
+    display: block;
+    margin: 0 auto;
     color: #ff6b6b;
+    font-size: 16px;
+    padding: 10px 0;
+}
+
+.movie-review .load-more {
     text-align: center;
-    padding-bottom: 10px;
+    padding: 20px 0;
+}
+
+.movie-review .no-more {
+    color: #909399;
+    font-size: 14px;
+}
+
+/* 空状态样式 */
+.movie-review :deep(.el-empty) {
+    padding: 40px 0;
 }
 </style>

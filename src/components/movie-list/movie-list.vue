@@ -1,17 +1,40 @@
 <template>
   <div class="movie-list">
-    <ul>
+    <!-- 空状态处理 -->
+    <el-empty v-if="!movies.length" description="暂无数据" class="empty-state">
+      <el-icon class="empty-icon"><Film /></el-icon>
+    </el-empty>
+    
+    <ul v-else>
       <li v-for="(movie, index) in movies" @click="selectItem(movie)" ref="group">
         <div class="date" v-if="needDate && !dateEqual(index)">{{ movie.date }}</div>
         <div class="item">
           <div class="info-img">
-            <img :src="replaceUrl(movie.images?.small)" class="poster" height="120" width="80" @error="handleImageError">
+            <el-image 
+              :src="replaceUrl(movie.images?.small)" 
+              class="poster" 
+              :height="120" 
+              :width="80"
+              fit="cover"
+              @error="handleImageError"
+              lazy
+            >
+              <template #error>
+                <img src="https://picsum.photos/80/120" />
+              </template>
+            </el-image>
           </div>
           <div class="info-desc">
             <div class="title-section">
               <p class="title">{{ movie.title }}</p>
               <div v-if="movie.rating?.average" class="rating-section">
-                <Star :score="movie.rating.average" :size="24" :showScore="showScore" />
+                <el-rate 
+                  v-model="movie.rating.average" 
+                  :max="10" 
+                  :show-score="showScore"
+                  disabled
+                  class="star-rating"
+                />
               </div>
             </div>
             <div class="director">导演：{{ movie.directors ? movie.directors[0]?.name : '未知' }}</div>
@@ -21,14 +44,27 @@
         </div>  
       </li>
     </ul>
-    <LoadMore :hasmore="hasMore" v-show="movies.length" />
+    
+    <!-- 加载更多 -->
+    <div v-if="movies.length" class="load-more">
+      <el-button 
+        v-if="hasMore" 
+        loading 
+        plain
+        size="small"
+        :disabled="true"
+      >
+        加载中...
+      </el-button>
+      <span v-else class="no-more">没有更多数据了</span>
+    </div>
   </div>
 </template>
 
 <script setup>
 import { ref, watch } from 'vue'
-import Star from '../../base/star/star.vue'
-import LoadMore from '../../base/loadmore/loadmore.vue'
+import { ElRate, ElImage, ElEmpty, ElButton, ElIcon } from 'element-plus'
+import { Film } from '@element-plus/icons-vue'
 
 const props = defineProps({
   movies: {

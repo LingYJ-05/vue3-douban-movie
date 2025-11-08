@@ -7,7 +7,11 @@
             <!-- 固定标题栏 -->
             <div class="fixed-title" v-show="tagSearch">
                 <span class="back" @click="back">
-                    <span class="icon-back">←</span>
+                    <el-button type="primary" color="gray"> 
+                        <el-icon>
+                            <ArrowLeftBold />
+                        </el-icon>
+                    </el-button>
                 </span>
                 <span class="type">关于{{ localQuery || '搜索' }}的电影</span>
             </div>
@@ -36,7 +40,7 @@
                     <h1 class="title">
                         <span class="text">搜索历史</span>
                         <span class="clear" @click="showConfirm">
-                           <el-button type="primary" icon="Delete" />
+                            <el-button type="primary" icon="Delete" />
                         </span>
                     </h1>
                     <history-list :searches="searchHistory" @selected="addQuery" @delete="deleteOne" />
@@ -47,8 +51,8 @@
             <div class="search-result" v-show="localQuery" ref="searchResult">
                 <suggest :query="localQuery" :tag-search="tagSearch"></suggest>
             </div>
-
             <confirm ref="confirm" text="确定要清空搜索历史吗？" confirmBtnText="清空" @confirm="clearSearchHistory" />
+
         </div>
     </transition>
 </template>
@@ -94,7 +98,7 @@ function addQuery(query) {
     localQuery.value = safeQuery
 }
 
-function deleteOne(item){
+function deleteOne(item) {
     // 保留不等于删除项的其他项
     searchHistory.value = searchHistory.value.filter(i => i !== item)
 }

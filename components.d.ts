@@ -14,7 +14,13 @@ declare module 'vue' {
     CelebrityList: typeof import('./src/components/celebrity-list/celebrity-list.vue')['default']
     CelebrityWorks: typeof import('./src/components/celebrity-works/celebrity-works.vue')['default']
     ElButton: typeof import('element-plus/es')['ElButton']
+    ElEmpty: typeof import('element-plus/es')['ElEmpty']
     ElIcon: typeof import('element-plus/es')['ElIcon']
+    ElImage: typeof import('element-plus/es')['ElImage']
+    ElRate: typeof import('element-plus/es')['ElRate']
+    ElSkeleton: typeof import('element-plus/es')['ElSkeleton']
+    ElTabPane: typeof import('element-plus/es')['ElTabPane']
+    ElTabs: typeof import('element-plus/es')['ElTabs']
     MovieComment: typeof import('./src/components/movie-comment/movie-comment.vue')['default']
     MovieDetail: typeof import('./src/components/movie-detail/movie-detail.vue')['default']
     MovieInfo: typeof import('./src/components/movie-info/movie-info.vue')['default']
@@ -30,5 +36,8 @@ declare module 'vue' {
     Suggest: typeof import('./src/components/suggest/suggest.vue')['default']
     Tab: typeof import('./src/components/tab/tab.vue')['default']
     UserCenter: typeof import('./src/components/user-center/user-center.vue')['default']
+  }
+  export interface GlobalDirectives {
+    vInfiniteScroll: typeof import('element-plus/es')['ElInfiniteScroll']
   }
 }
