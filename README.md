@@ -46,7 +46,7 @@
 
 4.  **访问应用**
 
-    打开浏览器，访问 `http://localhost:5173` 即可看到运行中的豆瓣电影应用。
+    打开浏览器，访问 `https://lingyj-05.github.io/vue3-douban-movie/` 即可看到运行中的豆瓣电影应用。
 
 ### 构建生产版本
 
